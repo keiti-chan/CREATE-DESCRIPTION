@@ -1,0 +1,1081 @@
+const form = document.querySelector("#factForm");
+const bundleForm = document.querySelector("#bundleForm");
+const generateBtn = document.querySelector("#generateBtn");
+const loadSampleBtn = document.querySelector("#loadSampleBtn");
+const nextVariantBtn = document.querySelector("#nextVariantBtn");
+const copyBtn = document.querySelector("#copyBtn");
+const branchBadge = document.querySelector("#branchBadge");
+const qaBadge = document.querySelector("#qaBadge");
+const preview = document.querySelector("#descriptionPreview");
+const htmlOutput = document.querySelector("#htmlOutput");
+const auditOutput = document.querySelector("#auditOutput");
+const playerFields = document.querySelector("#playerFields");
+const bundleItemTheme = document.querySelector("#bundleItemTheme");
+const bundleItemSeason = document.querySelector("#bundleItemSeason");
+const bundleProductSelect = document.querySelector("#bundleProductSelect");
+const bundleKitTypeSelect = document.querySelector("#bundleKitTypeSelect");
+const bundleSocksSelect = document.querySelector("#bundleSocksSelect");
+const bundlePrintSelect = document.querySelector("#bundlePrintSelect");
+const bundlePrintFields = document.querySelector("#bundlePrintFields");
+const bundlePrintName = document.querySelector("#bundlePrintName");
+const bundlePrintNumber = document.querySelector("#bundlePrintNumber");
+const bundleItemAnother = document.querySelector("#bundleItemAnother");
+const addBundleItemBtn = document.querySelector("#addBundleItemBtn");
+const bundleItemsSummaryEl = document.querySelector("#bundleItemsSummary");
+const bundleItemsList = document.querySelector("#bundleItemsList");
+const templateLibrary = window.DESCRIPTION_TEMPLATE_LIBRARY;
+
+let variantOffset = 0;
+let generateTimer = null;
+let activeMode = "product";
+let bundleItems = [];
+
+const defaultFacts = {
+  site: "KFK",
+  size_guide_tab_status: "confirmed_present",
+  size_guide_location: "site_page",
+  size_guide_url: "https://kidsfootballkit.co.uk/size-chart/",
+  verification_status: "verified",
+  fact_status: "ready_for_generation",
+  source_notes: "Generated from simplified KFK description form."
+};
+
+const allowedTags = new Set(["P", "H3", "UL", "LI", "STRONG", "A"]);
+const forbiddenTerms = [
+  "official",
+  "authentic",
+  "genuine",
+  "licensed",
+  "premium",
+  "same as players wear",
+  "true to size",
+  "breathable",
+  "moisture-wicking",
+  "guaranteed fit"
+];
+
+function getFacts() {
+  const data = new FormData(form);
+  const facts = { ...defaultFacts };
+  for (const [key, value] of data.entries()) {
+    facts[key] = typeof value === "string" ? value.trim() : value;
+  }
+
+  applyAnotherValue(facts, "kit_type");
+  applyAnotherValue(facts, "sleeve_length");
+  applyAnotherValue(facts, "included_items");
+  applyAnotherValue(facts, "socks_status");
+  applyAnotherValue(facts, "audience");
+  applyAnotherValue(facts, "product_type");
+  normaliseAudience(facts);
+  normaliseProductType(facts);
+  applyProductTypeRules(facts);
+  applyDerivedSizeFacts(facts);
+
+  if (facts.listing_configuration === "plain_customisable") {
+    facts.personalisation_status = "available";
+    facts.pre_applied_name = "";
+    facts.pre_applied_number = "";
+    facts.print_price_included = "not_applicable";
+  } else {
+    facts.personalisation_status = "unavailable";
+    facts.print_price_included = "yes";
+  }
+
+  return facts;
+}
+
+function getBundleFacts() {
+  const data = new FormData(bundleForm);
+  const facts = { ...defaultFacts, product_type: "bundle" };
+  for (const [key, value] of data.entries()) {
+    facts[key] = typeof value === "string" ? value.trim() : value;
+  }
+
+  facts.audience = "buyers";
+  facts.bundle_items_list = splitBundleItems(facts.bundle_items);
+  facts.bundle_theme = bundleThemeSummary(facts.bundle_items_list);
+  facts.season = bundleSeasonSummary(facts.bundle_items_list);
+  facts.bundle_size_range = "Varies by item";
+  facts.personalisation_status = "unavailable";
+
+  facts.visible_size_range = "Varies by item";
+  facts.size_profile = "bundle_mixed";
+
+  return facts;
+}
+
+function applyDerivedSizeFacts(facts) {
+  if (facts.audience === "adult") {
+    facts.visible_size_range = "Adult sizes S-XXL";
+    facts.size_profile = "adult_s_2xl";
+    return;
+  }
+
+  if (facts.audience === "kids") {
+    facts.visible_size_range = "Kids sizes 16-28";
+    facts.size_profile = "kids_16_28";
+    return;
+  }
+
+  facts.visible_size_range = "";
+  facts.size_profile = "unknown";
+}
+
+function applyAnotherValue(facts, fieldName) {
+  if (facts[fieldName] !== "another") return;
+  const customValue = facts[`${fieldName}_another`];
+  facts[fieldName] = customValue || "unknown";
+}
+
+function splitBundleItems(value) {
+  return String(value || "")
+    .split(/\r?\n|;/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function syncBundleItemsInput() {
+  bundleForm.elements.bundle_items.value = bundleItems.join("\n");
+}
+
+function renderBundleItemsList() {
+  syncBundleItemsInput();
+  const countText = bundleItems.length === 1 ? "1 item added" : `${bundleItems.length} items added`;
+  bundleItemsSummaryEl.textContent = bundleItems.length ? `Added items: ${countText}` : "Added items: 0";
+  bundleItemsList.innerHTML = "";
+
+  if (!bundleItems.length) {
+    const emptyState = document.createElement("span");
+    emptyState.className = "bundle-items-empty";
+    emptyState.textContent = "No bundle items added yet.";
+    bundleItemsList.append(emptyState);
+    return;
+  }
+
+  bundleItems.forEach((item, index) => {
+    const chip = document.createElement("span");
+    chip.className = "bundle-item-chip";
+    chip.textContent = formatBundleItemForChip(item);
+
+    const removeButton = document.createElement("button");
+    removeButton.type = "button";
+    removeButton.setAttribute("aria-label", `Remove ${formatBundleItemForChip(item)}`);
+    removeButton.textContent = "x";
+    removeButton.addEventListener("click", () => {
+      bundleItems.splice(index, 1);
+      renderBundleItemsList();
+      variantOffset = 0;
+      scheduleGenerate();
+    });
+
+    chip.append(removeButton);
+    bundleItemsList.append(chip);
+  });
+}
+
+function selectedBundleItem() {
+  if (bundleProductSelect.value === "another") {
+    return bundleItemAnother.value.trim();
+  }
+
+  const theme = bundleItemTheme.value.trim();
+  const season = bundleItemSeason.value.trim();
+  const kitType = bundleKitTypeSelect.value.trim();
+  const product = bundleProductSelect.value.trim();
+  const socks = usesBundleSocks() ? ` ${bundleSocksSelect.value.trim()}` : "";
+  const print = bundlePrintSelect.value === "Printed"
+    ? ` ${bundlePrintName.value.trim()} ${bundlePrintNumber.value.trim()}`.trimEnd()
+    : "";
+
+  return `${theme} ${season} ${kitType} ${product}${socks}${print}`.replace(/\s+/g, " ").trim();
+}
+
+function addSelectedBundleItem() {
+  const item = selectedBundleItem();
+  if (!item) return;
+  if (bundleProductSelect.value !== "another" && (!bundleItemTheme.value.trim() || !bundleItemSeason.value.trim())) {
+    if (!bundleItemTheme.value.trim()) bundleItemTheme.focus();
+    else bundleItemSeason.focus();
+    return;
+  }
+  if (bundlePrintSelect.value === "Printed" && (!bundlePrintName.value.trim() || !bundlePrintNumber.value.trim())) {
+    if (!bundlePrintName.value.trim()) bundlePrintName.focus();
+    else bundlePrintNumber.focus();
+    return;
+  }
+
+  if (!bundleItems.some((existingItem) => existingItem.toLowerCase() === item.toLowerCase())) {
+    bundleItems.push(item);
+  }
+
+  if (bundleProductSelect.value === "another") {
+    bundleItemAnother.value = "";
+  }
+  if (bundlePrintSelect.value === "Printed") {
+    bundlePrintName.value = "";
+    bundlePrintNumber.value = "";
+  }
+
+  renderBundleItemsList();
+  variantOffset = 0;
+  scheduleGenerate();
+}
+
+function syncBundleItemControls() {
+  const isAnother = bundleProductSelect.value === "another";
+  const usesStructuredItem = !isAnother;
+  const usesSocks = usesBundleSocks();
+  const usesPrint = usesStructuredItem && bundlePrintSelect.value === "Printed";
+
+  bundleKitTypeSelect.classList.toggle("hidden", !usesStructuredItem);
+  bundleItemTheme.classList.toggle("hidden", !usesStructuredItem);
+  bundleItemSeason.classList.toggle("hidden", !usesStructuredItem);
+  bundleSocksSelect.classList.toggle("hidden", !usesSocks);
+  bundlePrintSelect.classList.toggle("hidden", !usesStructuredItem);
+  bundlePrintFields.classList.toggle("visible", usesPrint);
+  bundlePrintName.required = usesPrint;
+  bundlePrintNumber.required = usesPrint;
+  bundleItemAnother.classList.toggle("visible", isAnother);
+  bundleItemAnother.required = isAnother;
+  if (!isAnother) bundleItemAnother.value = "";
+  if (!usesPrint) {
+    bundlePrintName.value = "";
+    bundlePrintNumber.value = "";
+  }
+}
+
+function usesBundleSocks() {
+  return bundleProductSelect.value === "Kit" || bundleProductSelect.value === "Adult Kit";
+}
+
+function normaliseAudience(facts) {
+  const value = String(facts.audience || "").trim().toLowerCase();
+  const adultAliases = new Set(["adult", "men", "mens", "men's", "man", "male", "women", "womens", "women's"]);
+  const kidsAliases = new Set(["kids", "kid", "children", "child", "youth", "junior", "boys", "girls"]);
+
+  if (adultAliases.has(value)) {
+    facts.audience = "adult";
+    return;
+  }
+
+  if (kidsAliases.has(value)) {
+    facts.audience = "kids";
+  }
+}
+
+function normaliseProductType(facts) {
+  const value = String(facts.product_type || "").trim().toLowerCase();
+  if (["shirt", "shirt only", "shirt-only", "football shirt"].includes(value)) {
+    facts.product_type = "shirt_only";
+  }
+}
+
+function applyProductTypeRules(facts) {
+  if (facts.product_type !== "shirt_only") return;
+  facts.included_items = "shirt_only";
+  facts.socks_status = "not_applicable";
+}
+
+function esc(value) {
+  return String(value || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function titleCaseToken(value) {
+  return String(value || "")
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function shirtLabel(facts) {
+  if (facts.sleeve_length === "long_sleeve") return "long-sleeve";
+  if (facts.sleeve_length === "short_sleeve") return "short-sleeve";
+  if (facts.sleeve_length && facts.sleeve_length !== "unknown") {
+    return facts.sleeve_length.replaceAll("_", "-").toLowerCase();
+  }
+  return "football";
+}
+
+function sentenceStart(value) {
+  const text = String(value || "");
+  return text ? text.charAt(0).toUpperCase() + text.slice(1) : "";
+}
+
+function displayName(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  if (text === text.toUpperCase()) {
+    return text.toLowerCase().replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
+  }
+  return text;
+}
+
+function displayDesignDetail(value) {
+  return String(value || "")
+    .replace(/\s*(shown|seen|confirmed)\s+in\s+the\s+(approved|verified|checked)?\s*product\s+image\.?/i, "")
+    .replace(/\s*based\s+on\s+the\s+(approved|verified|checked)?\s*product\s+image\.?/i, "")
+    .trim();
+}
+
+function pick(list, facts, salt = 0) {
+  const seed = [
+    facts.product_name,
+    facts.team,
+    facts.season,
+    facts.kit_type,
+    facts.included_items,
+    facts.socks_status,
+    facts.listing_configuration
+  ].join("|");
+  const base = stableHash(seed || "kfk");
+  return list[(base + variantOffset + salt) % list.length];
+}
+
+function pickBranchVariant(branch, facts) {
+  const branchConfig = templateLibrary.branches[branch];
+  if (!branchConfig) return null;
+  return pick(branchConfig.variants, facts, 1);
+}
+
+function stableHash(text) {
+  return String(text).split("").reduce((sum, char) => sum + char.charCodeAt(0), 0);
+}
+
+function interpolate(template, facts) {
+  return template
+    .replaceAll("{product_name}", esc(facts.product_name))
+    .replaceAll("{team}", esc(facts.team))
+    .replaceAll("{season}", esc(facts.season))
+    .replaceAll("{kit_type_label}", esc(titleCaseToken(facts.kit_type)))
+    .replaceAll("{sleeve_label}", esc(shirtLabel(facts)))
+    .replaceAll("{sock_phrase}", facts.socks_status === "included" ? " and socks" : "")
+    .replaceAll("{player_name}", esc(displayName(facts.pre_applied_name)))
+    .replaceAll("{player_number}", esc(facts.pre_applied_number))
+    .replaceAll("{design_detail}", esc(displayDesignDetail(facts.verified_design_detail)))
+    .replaceAll("{bundle_name}", esc(facts.bundle_name))
+    .replaceAll("{bundle_theme}", esc(facts.bundle_theme))
+    .replaceAll("{audience_label}", esc(audienceLabel(facts.audience)))
+    .replaceAll("{bundle_items_summary}", esc(bundleItemsSummary(facts.bundle_items_list)))
+    .replaceAll("{bundle_personalisation_line}", bundlePersonalisationLine(facts));
+}
+
+function audienceLabel(value) {
+  if (value === "kids") return "kids";
+  if (value === "adult") return "adult buyers";
+  if (value === "family") return "families";
+  return value || "buyers";
+}
+
+function bundleItemsSummary(items) {
+  if (!items || !items.length) return "";
+  const formattedItems = items.map(formatBundleItemForOutput);
+  if (formattedItems.length === 1) return formattedItems[0];
+  if (formattedItems.length === 2) return `${formattedItems[0]} and ${formattedItems[1]}`;
+  return `${formattedItems.slice(0, -1).join(", ")} and ${formattedItems[formattedItems.length - 1]}`;
+}
+
+function bundleThemeSummary(items) {
+  const themes = uniqueItemParts(items, "theme");
+  if (!themes.length) return "selected-team";
+  if (themes.length === 1) return themes[0];
+  return "multi-team";
+}
+
+function bundleSeasonSummary(items) {
+  const seasons = uniqueItemParts(items, "season");
+  if (!seasons.length) return "selected-season";
+  if (seasons.length === 1) return seasons[0];
+  return "mixed-season";
+}
+
+function uniqueItemParts(items, part) {
+  const values = [];
+  items.forEach((item) => {
+    const match = parseBundleItemParts(item);
+    if (!match) return;
+    const value = part === "theme" ? match.theme : match.season;
+    if (value && !values.some((existing) => existing.toLowerCase() === value.toLowerCase())) {
+      values.push(value);
+    }
+  });
+  return values;
+}
+
+function parseBundleItemParts(item) {
+  const raw = String(item || "").trim();
+  const match = raw.match(/^(.+?)\s+(\d{2,4}\/\d{2})\s+(Home|Away|Third|Goalkeeper)\s+(.+)$/i);
+  if (!match) return null;
+  return {
+    theme: match[1],
+    season: match[2],
+    kitType: match[3],
+    detail: match[4]
+  };
+}
+
+function formatBundleItemForChip(item) {
+  const raw = String(item || "").trim();
+  const parts = parseBundleItemParts(raw);
+  if (!parts) return raw;
+  return `${parts.theme} ${parts.kitType} ${parts.detail}`.replace(/\s+/g, " ").trim();
+}
+
+function formatBundleItemForOutput(item) {
+  const raw = String(item || "").trim();
+  const parts = parseBundleItemParts(raw);
+  const outputRaw = parts ? `${parts.theme} ${parts.kitType} ${parts.detail}` : raw;
+  const printMatch = outputRaw.match(/^(.*?)(?:\s+([A-Z][A-Z.'-]*(?:\s+[A-Z][A-Z.'-]*)*)\s+(\d{1,2}))$/);
+  const hasPrint = Boolean(printMatch && /\b(Kit|Shirt)\b/i.test(printMatch[1]));
+  const base = hasPrint ? printMatch[1].trim() : outputRaw;
+  const print = hasPrint ? `${printMatch[2]} ${printMatch[3]}` : "";
+  const readableBase = base
+    .replace(/\bWith Socks\b/g, "with socks")
+    .replace(/\bNo Socks\b/g, "without socks")
+    .replace(/\b(Home|Away|Third|Goalkeeper) Adult Kit\b/g, "$1 adult kit")
+    .replace(/\b(Home|Away|Third|Goalkeeper) Long Sleeve Shirt\b/g, "$1 long sleeve shirt")
+    .replace(/\b(Home|Away|Third|Goalkeeper) Kit\b/g, "$1 kit")
+    .replace(/\b(Home|Away|Third|Goalkeeper) Shirt\b/g, "$1 shirt");
+
+  return print ? `${readableBase} - ${print}` : readableBase;
+}
+
+function bundlePersonalisationLine(facts) {
+  if (bundleHasPrintedItem(facts)) {
+    return "<li>Any player names and numbers shown in the included-item list are already part of the selected bundle items.</li>";
+  }
+  if (facts.personalisation_status === "available") {
+    return "<li>Personalisation can be selected where the bundle options allow it; check all entered names and numbers before checkout.</li>";
+  }
+  if (facts.personalisation_status === "varies") {
+    return "<li>Personalisation may vary by item, so check the available bundle options before ordering.</li>";
+  }
+  return "<li>This bundle is supplied according to the selected item list shown above.</li>";
+}
+
+function bundleHasPrintedItem(facts) {
+  return facts.bundle_items_list.some((item) => /\b[A-Z]{2,}\s+\d{1,2}\b/.test(item));
+}
+
+function detectBundleBranch(facts) {
+  const items = facts.bundle_items_list.map((item) => item.toLowerCase());
+  const hasPrinted = bundleHasPrintedItem(facts);
+  const hasKit = items.some((item) => item.includes(" kit"));
+  const hasShirt = items.some((item) => item.includes("shirt"));
+  const hasWithSocks = items.some((item) => item.includes("with socks"));
+  const hasNoSocks = items.some((item) => item.includes("no socks"));
+
+  if (hasPrinted) return "printed_bundle";
+  if (hasKit && hasShirt) return "mixed_bundle";
+  if (hasKit && hasWithSocks) return "kit_bundle_with_socks";
+  if (hasKit && hasNoSocks) return "kit_bundle_no_socks";
+  if (hasShirt) return "shirt_bundle";
+  return "mixed_bundle";
+}
+
+function detectBranch(facts) {
+  if (facts.site !== "KFK") return null;
+
+  if (facts.product_type === "shirt_only" && facts.included_items === "shirt_only" && facts.socks_status === "not_applicable") {
+    return `${facts.listing_configuration}_${facts.audience}_shirt_only`;
+  }
+
+  if (facts.product_type === "full_kit" && facts.audience === "kids") {
+    if (facts.included_items === "shirt_and_shorts" && facts.socks_status === "unavailable") {
+      if (facts.listing_configuration === "plain_customisable") {
+        return "plain_customisable_kids_full_kit_without_socks";
+      }
+      if (facts.listing_configuration === "pre_applied_player") {
+        return "pre_applied_player_kids_full_kit_without_socks";
+      }
+    }
+
+    if (facts.included_items === "shirt_shorts_and_socks" && facts.socks_status === "included") {
+      if (facts.listing_configuration === "plain_customisable") {
+        return "plain_customisable_kids_full_kit_with_socks";
+      }
+      if (facts.listing_configuration === "pre_applied_player") {
+        return "pre_applied_player_kids_full_kit_with_socks";
+      }
+    }
+  }
+
+  return null;
+}
+
+function validateFacts(facts, branch) {
+  const blockers = [];
+  const reviewFlags = [];
+
+  const required = [
+    "product_name",
+    "team",
+    "season",
+    "audience",
+    "product_type",
+    "kit_type",
+    "sleeve_length",
+    "included_items",
+    "socks_status",
+    "visible_size_range",
+    "size_profile",
+    "listing_configuration",
+    "personalisation_status",
+    "verification_status",
+    "fact_status"
+  ];
+
+  required.forEach((field) => {
+    if (!facts[field] || facts[field] === "unknown") {
+      blockers.push(`${field} is required and cannot be unknown.`);
+    }
+  });
+
+  if (facts.verification_status === "conflict" || facts.verification_status === "unverified") {
+    blockers.push(`verification_status is ${facts.verification_status}.`);
+  }
+
+  if (facts.fact_status !== "ready_for_generation") {
+    blockers.push("fact_status must be ready_for_generation.");
+  }
+
+  if (facts.product_type === "full_kit" && facts.included_items === "unknown") {
+    blockers.push("Full-kit inclusions cannot be unknown.");
+  }
+
+  if (facts.product_type === "full_kit" && facts.socks_status === "unknown") {
+    blockers.push("Socks status cannot be unknown for a full kit.");
+  }
+
+  if (facts.product_type === "shirt_only") {
+    if (facts.included_items !== "shirt_only") {
+      blockers.push("Shirt-only products must use included_items shirt_only.");
+    }
+    if (facts.socks_status !== "not_applicable") {
+      blockers.push("Shirt-only products must use socks_status not_applicable.");
+    }
+  }
+
+  if (facts.audience === "kids" && facts.size_profile !== "kids_16_28") {
+    blockers.push("Kids listings must use size_profile kids_16_28.");
+  }
+
+  if (facts.audience === "adult" && facts.size_profile !== "adult_s_2xl") {
+    blockers.push("Adult listings must use size_profile adult_s_2xl.");
+  }
+
+  if (facts.size_profile === "kids_16_28" && !facts.visible_size_range.toLowerCase().includes("kids sizes 16-28")) {
+    blockers.push("visible_size_range must match Kids sizes 16-28 for size_profile kids_16_28.");
+  }
+
+  if (facts.size_profile === "adult_s_2xl" && !facts.visible_size_range.toLowerCase().includes("adult sizes s-xxl")) {
+    blockers.push("visible_size_range must match Adult sizes S-XXL for size_profile adult_s_2xl.");
+  }
+
+  if (facts.listing_configuration === "plain_customisable") {
+    if (facts.personalisation_status !== "available") {
+      blockers.push("Plain customisable listings must have personalisation_status available.");
+    }
+    if (facts.pre_applied_name || facts.pre_applied_number) {
+      blockers.push("Plain customisable listings must not include a pre-applied player name or number.");
+    }
+    if (facts.print_price_included !== "not_applicable") {
+      blockers.push("Plain customisable listings must use print_price_included not_applicable.");
+    }
+  }
+
+  if (facts.listing_configuration === "pre_applied_player") {
+    if (facts.personalisation_status !== "unavailable") {
+      blockers.push("Pre-applied player listings must have personalisation_status unavailable.");
+    }
+    if (!facts.pre_applied_name || !facts.pre_applied_number) {
+      blockers.push("Pre-applied player listings require pre_applied_name and pre_applied_number.");
+    }
+    if (facts.print_price_included !== "yes") {
+      blockers.push("Pre-applied player listings must use print_price_included yes.");
+    }
+  }
+
+  if (!branch) {
+    blockers.push("No approved description branch matches these facts.");
+  }
+
+  if (facts.size_guide_tab_status !== "confirmed_present") {
+    reviewFlags.push("Size guide is not confirmed; output can only be draft/review.");
+  }
+
+  if (facts.size_guide_location === "site_page" && !facts.size_guide_url) {
+    reviewFlags.push("Size guide location is site_page but size_guide_url is blank.");
+  }
+
+  if (!facts.source_notes) {
+    reviewFlags.push("source_notes is blank; add the human validation/evidence note before approval.");
+  }
+
+  return { blockers, reviewFlags };
+}
+
+function sizeGuideSentence(facts) {
+  if (facts.size_guide_tab_status !== "confirmed_present") return "";
+  if (facts.size_guide_location === "product_tab") {
+    return " Check the Size Guide tab for measurements.";
+  }
+  if (facts.size_guide_location === "site_page") {
+    return " Check our Size Chart for measurements.";
+  }
+  return "";
+}
+
+function includedItemsHtml(facts) {
+  const shirtText = facts.listing_configuration === "pre_applied_player"
+    ? `${esc(sentenceStart(shirtLabel(facts)))} shirt with ${esc(displayName(facts.pre_applied_name))} name and number ${esc(facts.pre_applied_number)} already applied to the back`
+    : `${esc(sentenceStart(shirtLabel(facts)))} shirt`;
+
+  if (facts.product_type === "shirt_only") {
+    return `<li>${shirtText}</li>`;
+  }
+
+  const socksText = facts.socks_status === "included"
+    ? "<li>Matching socks</li>"
+    : "<li>Socks are not included</li>";
+
+  return [
+    `<li>${shirtText}</li>`,
+    "<li>Matching shorts</li>",
+    socksText
+  ].join("\n");
+}
+
+function renderDescription(facts, branch) {
+  const template = pickBranchVariant(branch, facts);
+  let opening = interpolate(template.opening, facts);
+
+  if (facts.verified_design_detail) {
+    opening += interpolate(pick(templateLibrary.designDetailTails, facts, 2), facts);
+  }
+
+  const sizeLine = `<li><strong>Sizes:</strong> ${esc(facts.visible_size_range)}.${sizeGuideSentence(facts)}</li>`;
+  const kitLine = `<li><strong>Kit type:</strong> ${esc(titleCaseToken(facts.kit_type))} kit with a ${esc(shirtLabel(facts))} shirt.</li>`;
+  const configurationLine = interpolate(template.keyDetail, facts);
+  const beforeOrder = template.beforeOrder.map((line) => interpolate(line, facts)).join("\n");
+
+  return [
+    `<p>${opening}</p>`,
+    "",
+    "<h3>What's Included</h3>",
+    "<ul>",
+    includedItemsHtml(facts),
+    "</ul>",
+    "",
+    "<h3>Key Buying Details</h3>",
+    "<ul>",
+    sizeLine,
+    kitLine,
+    configurationLine,
+    "</ul>",
+    "",
+    "<h3>Before You Order</h3>",
+    "<ul>",
+    beforeOrder,
+    "</ul>"
+  ].join("\n");
+}
+
+function renderBundleDescription(facts) {
+  const bundleBranch = detectBundleBranch(facts);
+  const branchConfig = templateLibrary.bundle.branches[bundleBranch] || templateLibrary.bundle.branches.mixed_bundle;
+  const template = pick(branchConfig.variants, facts, 1);
+  let opening = interpolate(template.opening, facts);
+
+  if (displayDesignDetail(facts.verified_design_detail)) {
+    opening += interpolate(pick(templateLibrary.designDetailTails, facts, 2), facts);
+  }
+
+  const itemsHtml = facts.bundle_items_list.map((item) => `<li>${esc(formatBundleItemForOutput(item))}</li>`).join("\n");
+  const keyDetail = interpolate(template.keyDetail, facts);
+  const beforeOrder = template.beforeOrder.map((line) => interpolate(line, facts)).join("\n");
+
+  return [
+    `<p>${opening}</p>`,
+    "",
+    "<h3>What's Included</h3>",
+    "<ul>",
+    itemsHtml,
+    "</ul>",
+    "",
+    "<h3>Key Buying Details</h3>",
+    "<ul>",
+    `<li><strong>Sizes:</strong> ${esc(facts.visible_size_range)}.${sizeGuideSentence(facts)}</li>`,
+    keyDetail,
+    "</ul>",
+    "",
+    "<h3>Before You Order</h3>",
+    "<ul>",
+    beforeOrder,
+    "</ul>"
+  ].join("\n");
+}
+
+function validateBundleFacts(facts) {
+  const blockers = [];
+  const reviewFlags = [];
+  const required = ["bundle_name"];
+
+  required.forEach((field) => {
+    if (!facts[field] || facts[field] === "unknown") {
+      blockers.push(`${field} is required and cannot be unknown.`);
+    }
+  });
+
+  if (facts.bundle_items_list.length < 2) {
+    blockers.push("Bundle descriptions need at least two included items.");
+  }
+
+  if (!facts.source_notes) {
+    reviewFlags.push("source_notes is blank; add the human validation/evidence note before approval.");
+  }
+
+  return { blockers, reviewFlags };
+}
+
+function auditDescription(html, facts, blockers, reviewFlags, resolvedBranch = null) {
+  if (!html) {
+    const qaStatus = blockers.length ? "block" : reviewFlags.length ? "review" : "pass";
+    return {
+      qa_status: qaStatus,
+      product_ref: facts.product_name,
+      site: facts.site,
+      branch: detectBranch(facts),
+      checks_run: [
+        "fact_consistency",
+        "configuration_logic"
+      ],
+      blockers,
+      review_flags: reviewFlags,
+      recommended_actions: recommendedActions(qaStatus, blockers, reviewFlags),
+      generated_at: new Date().toISOString(),
+      generator_version: "test_project_rule_builder_0.2.0"
+    };
+  }
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(`<div id="root">${html}</div>`, "text/html");
+  const tags = [...doc.querySelectorAll("#root *")].map((node) => node.tagName);
+  const badTags = tags.filter((tag) => !allowedTags.has(tag));
+  const text = doc.querySelector("#root").textContent.toLowerCase();
+  const unsupported = forbiddenTerms.filter((term) => text.includes(term));
+
+  if (badTags.length) {
+    blockers.push(`HTML contains prohibited tag(s): ${[...new Set(badTags)].join(", ")}.`);
+  }
+
+  if (unsupported.length) {
+    blockers.push(`Description contains unsupported claim term(s): ${unsupported.join(", ")}.`);
+  }
+
+  if (facts.socks_status === "unavailable" && !text.includes("socks are not included")) {
+    blockers.push("No-socks product must state that socks are not included.");
+  }
+
+  if (facts.product_type === "shirt_only" && !text.includes("shorts and socks are not included")) {
+    blockers.push("Shirt-only product must state that shorts and socks are not included.");
+  }
+
+  if (facts.listing_configuration === "pre_applied_player" && text.includes("add a custom name")) {
+    blockers.push("Pre-applied player product must not invite customer-entered name/number personalisation.");
+  }
+
+  const qaStatus = blockers.length ? "block" : reviewFlags.length ? "review" : "pass";
+
+  return {
+    qa_status: qaStatus,
+    product_ref: facts.product_name,
+    site: facts.site,
+    branch: resolvedBranch || detectBranch(facts),
+    checks_run: [
+      "fact_consistency",
+      "html_structure",
+      "configuration_logic",
+      "global_component_duplication",
+      "unsupported_claims"
+    ],
+    blockers,
+    review_flags: reviewFlags,
+    recommended_actions: recommendedActions(qaStatus, blockers, reviewFlags),
+    generated_at: new Date().toISOString(),
+    generator_version: "test_project_rule_builder_0.2.0"
+  };
+}
+
+function recommendedActions(status, blockers, reviewFlags) {
+  if (status === "pass") return ["Send HTML for human approval before WooCommerce update."];
+  if (status === "review") return reviewFlags.map((flag) => `Review: ${flag}`);
+  return blockers.map((blocker) => `Fix before generation: ${blocker}`);
+}
+
+function toYamlish(value, indent = 0) {
+  const pad = " ".repeat(indent);
+  if (Array.isArray(value)) {
+    if (!value.length) return "[]";
+    return value.map((item) => `${pad}- ${item}`).join("\n");
+  }
+  if (value && typeof value === "object") {
+    return Object.entries(value).map(([key, item]) => {
+      if (Array.isArray(item)) {
+        return `${pad}${key}:\n${toYamlish(item, indent + 2)}`;
+      }
+      return `${pad}${key}: ${item}`;
+    }).join("\n");
+  }
+  return String(value);
+}
+
+function setBadge(element, text, status) {
+  element.textContent = text;
+  element.className = `badge ${status}`;
+}
+
+function generate() {
+  if (activeMode === "bundle") {
+    generateBundle();
+    return;
+  }
+
+  const facts = getFacts();
+
+  const branch = detectBranch(facts);
+  const validation = validateFacts(facts, branch);
+  let html = "";
+  let audit;
+
+  if (validation.blockers.length) {
+    audit = auditDescription("", facts, [...validation.blockers], [...validation.reviewFlags]);
+    preview.className = "description-preview empty";
+    preview.textContent = "BLOCK: fix the audit issues before generating customer-facing HTML.";
+    htmlOutput.value = "";
+  } else {
+    html = renderDescription(facts, branch);
+    audit = auditDescription(html, facts, [...validation.blockers], [...validation.reviewFlags]);
+    preview.className = "description-preview";
+    preview.innerHTML = html;
+    htmlOutput.value = html;
+  }
+
+  setBadge(branchBadge, branch ? templateLibrary.branchLabels[branch] : "No approved branch", branch ? "pass" : "block");
+  setBadge(qaBadge, audit.qa_status, audit.qa_status);
+  auditOutput.textContent = toYamlish(audit);
+}
+
+function generateBundle() {
+  const facts = getBundleFacts();
+  const validation = validateBundleFacts(facts);
+  const bundleBranch = detectBundleBranch(facts);
+  let html = "";
+  let audit;
+
+  if (validation.blockers.length) {
+    audit = auditDescription("", facts, [...validation.blockers], [...validation.reviewFlags], bundleBranch);
+    preview.className = "description-preview empty";
+    preview.textContent = "BLOCK: fix the audit issues before generating customer-facing HTML.";
+    htmlOutput.value = "";
+  } else {
+    html = renderBundleDescription(facts);
+    audit = auditDescription(html, facts, [...validation.blockers], [...validation.reviewFlags], bundleBranch);
+    preview.className = "description-preview";
+    preview.innerHTML = html;
+    htmlOutput.value = html;
+  }
+
+  const bundleLabel = templateLibrary.bundle.branchLabels[bundleBranch] || templateLibrary.bundle.label;
+  setBadge(branchBadge, bundleLabel, validation.blockers.length ? "block" : "pass");
+  setBadge(qaBadge, audit.qa_status, audit.qa_status);
+  auditOutput.textContent = toYamlish(audit);
+}
+
+function scheduleGenerate({ advanceVariant = false } = {}) {
+  if (generateTimer) window.clearTimeout(generateTimer);
+  if (advanceVariant) variantOffset += 1;
+  syncProductTypeDefaults();
+  syncAnotherInputs();
+
+  generateBtn.disabled = true;
+  generateBtn.textContent = "Generating...";
+  preview.className = "description-preview empty";
+  preview.textContent = "Generating description...";
+
+  generateTimer = window.setTimeout(() => {
+    try {
+      generate();
+    } catch (error) {
+      const message = error && error.message ? error.message : String(error);
+      preview.className = "description-preview empty";
+      preview.textContent = `ERROR: ${message}`;
+      htmlOutput.value = "";
+      auditOutput.textContent = toYamlish({
+        qa_status: "block",
+        error: message,
+        generated_at: new Date().toISOString()
+      });
+      setBadge(qaBadge, "block", "block");
+    } finally {
+      generateBtn.disabled = false;
+      generateBtn.textContent = "Generate";
+      generateTimer = null;
+    }
+  }, 500);
+}
+
+function loadSample() {
+  if (activeMode === "bundle") {
+    loadBundleSample();
+    return;
+  }
+
+  const sample = {
+    product_name: "Inter Miami Home Kids Football Kit 2026/27",
+    team: "Inter Miami",
+    season: "2026/27",
+    audience: "kids",
+    product_type: "full_kit",
+    kit_type: "home",
+    sleeve_length: "short_sleeve",
+    included_items: "shirt_and_shorts",
+    socks_status: "unavailable",
+    listing_configuration: "plain_customisable",
+    pre_applied_name: "",
+    pre_applied_number: "",
+    verified_design_detail: "the current home colour layout shown in the approved product image"
+  };
+
+  Object.entries(sample).forEach(([name, value]) => {
+    const field = form.elements[name];
+    if (field) field.value = value;
+  });
+  syncConditionalFields();
+  variantOffset = 0;
+  generate();
+}
+
+function loadBundleSample() {
+  const sample = {
+    bundle_name: "Inter Miami Kids Bundle 2026/27",
+    bundle_items: "Inter Miami 2026/27 Home Kit With Socks\nInter Miami 2026/27 Away Kit With Socks",
+    verified_design_detail: "the current home and away colour layouts"
+  };
+
+  Object.entries(sample).forEach(([name, value]) => {
+    const field = bundleForm.elements[name];
+    if (field) field.value = value;
+  });
+  bundleItems = splitBundleItems(sample.bundle_items);
+  bundleItemTheme.value = "Inter Miami";
+  bundleItemSeason.value = "2026/27";
+  renderBundleItemsList();
+  variantOffset = 0;
+  generate();
+}
+
+function syncConditionalFields() {
+  const facts = getFacts();
+  const isPlayer = facts.listing_configuration === "pre_applied_player";
+  playerFields.classList.toggle("visible", isPlayer);
+}
+
+function syncAnotherInputs() {
+  document.querySelectorAll("#factForm select, #bundleForm select").forEach((select) => {
+    const input = select.form.elements[`${select.name}_another`];
+    if (!input) return;
+    const isAnother = select.value === "another";
+    input.classList.toggle("visible", isAnother);
+    input.required = isAnother;
+    if (!isAnother) input.value = "";
+  });
+}
+
+function setMode(mode) {
+  activeMode = mode;
+  form.classList.toggle("hidden", mode !== "product");
+  bundleForm.classList.toggle("hidden", mode !== "bundle");
+  document.querySelectorAll(".mode-tab").forEach((button) => {
+    button.classList.toggle("active", button.dataset.mode === mode);
+  });
+  variantOffset = 0;
+  setBadge(branchBadge, mode === "bundle" ? "Bundle mode" : "No branch yet", "neutral");
+  setBadge(qaBadge, "not run", "neutral");
+  preview.className = "description-preview empty";
+  preview.textContent = "Generate a description to preview it here.";
+  htmlOutput.value = "";
+  auditOutput.textContent = "qa_status: not_run";
+  syncAnotherInputs();
+}
+
+function syncProductTypeDefaults() {
+  const productType = form.elements.product_type.value;
+  if (productType === "shirt_only") {
+    form.elements.included_items.value = "shirt_only";
+    form.elements.socks_status.value = "not_applicable";
+  }
+}
+
+document.querySelectorAll(".tab").forEach((button) => {
+  button.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach((tab) => tab.classList.remove("active"));
+    document.querySelectorAll(".view").forEach((view) => view.classList.remove("active"));
+    button.classList.add("active");
+    document.querySelector(`#${button.dataset.view}View`).classList.add("active");
+  });
+});
+
+document.querySelectorAll(".mode-tab").forEach((button) => {
+  button.addEventListener("click", () => setMode(button.dataset.mode));
+});
+
+generateBtn.addEventListener("click", () => scheduleGenerate({ advanceVariant: true }));
+loadSampleBtn.addEventListener("click", loadSample);
+nextVariantBtn.addEventListener("click", () => {
+  scheduleGenerate({ advanceVariant: true });
+});
+form.elements.listing_configuration.addEventListener("change", () => {
+  syncConditionalFields();
+  variantOffset = 0;
+  scheduleGenerate();
+});
+form.elements.product_type.addEventListener("change", () => {
+  syncProductTypeDefaults();
+  syncAnotherInputs();
+  variantOffset = 0;
+  scheduleGenerate();
+});
+form.querySelectorAll("select").forEach((select) => {
+  select.addEventListener("change", () => {
+    syncProductTypeDefaults();
+    syncAnotherInputs();
+  });
+});
+copyBtn.addEventListener("click", async () => {
+  if (!htmlOutput.value) return;
+  await navigator.clipboard.writeText(htmlOutput.value);
+  copyBtn.textContent = "Copied";
+  window.setTimeout(() => {
+    copyBtn.textContent = "Copy HTML";
+  }, 1200);
+});
+bundleProductSelect.addEventListener("change", syncBundleItemControls);
+bundlePrintSelect.addEventListener("change", syncBundleItemControls);
+bundlePrintSelect.addEventListener("input", syncBundleItemControls);
+addBundleItemBtn.addEventListener("click", addSelectedBundleItem);
+bundleItemAnother.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter") return;
+  event.preventDefault();
+  addSelectedBundleItem();
+});
+
+loadSample();
+syncProductTypeDefaults();
+syncAnotherInputs();
+syncBundleItemControls();
+renderBundleItemsList();

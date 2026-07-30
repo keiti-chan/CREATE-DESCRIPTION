@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>KFK Description Builder</title>
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">KFK 2026/27</p>
+        <h1>Description Builder</h1>
+        <div class="mode-tabs" aria-label="Builder mode">
+          <button class="mode-tab active" type="button" data-mode="product">Product</button>
+          <button class="mode-tab" type="button" data-mode="bundle">Bundle</button>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button id="loadSampleBtn" type="button">Load sample</button>
+        <button id="nextVariantBtn" type="button">Another version</button>
+        <button id="generateBtn" type="button" class="primary">Generate</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="panel input-panel" aria-labelledby="input-title">
+        <div class="section-heading">
+          <h2 id="input-title">Verified Fact Input</h2>
+          <span id="branchBadge" class="badge neutral">No branch yet</span>
+        </div>
+
+        <form id="factForm" class="fact-grid">
+          <label class="span-2">
+            Product name
+            <input name="product_name" type="text" placeholder="Inter Miami Home Kids Football Kit 2026/27" required>
+          </label>
+
+          <label>
+            Team
+            <input name="team" type="text" placeholder="Inter Miami" required>
+          </label>
+
+          <label>
+            Season
+            <input name="season" type="text" placeholder="2026/27" required>
+          </label>
+
+          <label>
+            Audience
+            <select name="audience">
+              <option value="kids">kids</option>
+              <option value="adult">adult</option>
+              <option value="another">Another</option>
+            </select>
+            <input class="another-input" name="audience_another" type="text" placeholder="Enter another audience">
+          </label>
+
+          <label>
+            Product type
+            <select name="product_type">
+              <option value="full_kit">full_kit</option>
+              <option value="shirt_only">shirt_only</option>
+              <option value="another">Another</option>
+            </select>
+            <input class="another-input" name="product_type_another" type="text" placeholder="Enter another product type">
+          </label>
+
+          <label>
+            Kit type
+            <select name="kit_type">
+              <option value="home">home</option>
+              <option value="away">away</option>
+              <option value="third">third</option>
+              <option value="goalkeeper">goalkeeper</option>
+              <option value="training">training</option>
+              <option value="special_edition">special_edition</option>
+              <option value="another">Another</option>
+            </select>
+            <input class="another-input" name="kit_type_another" type="text" placeholder="Enter another kit type">
+          </label>
+
+          <label>
+            Sleeve length
+            <select name="sleeve_length">
+              <option value="short_sleeve">short_sleeve</option>
+              <option value="long_sleeve">long_sleeve</option>
+              <option value="another">Another</option>
+            </select>
+            <input class="another-input" name="sleeve_length_another" type="text" placeholder="Enter another sleeve type">
+          </label>
+
+          <label>
+            Included items
+            <select name="included_items">
+              <option value="shirt_and_shorts">shirt_and_shorts</option>
+              <option value="shirt_shorts_and_socks">shirt_shorts_and_socks</option>
+              <option value="shirt_only">shirt_only</option>
+              <option value="another">Another</option>
+            </select>
+            <input class="another-input" name="included_items_another" type="text" placeholder="Enter another included-items value">
+          </label>
+
+          <label>
+            Socks status
+            <select name="socks_status">
+              <option value="unavailable">unavailable</option>
+              <option value="included">included</option>
+              <option value="not_applicable">not_applicable</option>
+              <option value="optional_add_on">optional_add_on</option>
+              <option value="another">Another</option>
+            </select>
+            <input class="another-input" name="socks_status_another" type="text" placeholder="Enter another socks status">
+          </label>
+
+          <label>
+            Listing configuration
+            <select name="listing_configuration">
+              <option value="plain_customisable">plain_customisable</option>
+              <option value="pre_applied_player">pre_applied_player</option>
+            </select>
+          </label>
+
+          <div id="playerFields" class="conditional-grid span-2">
+            <label>
+              Player name
+              <input name="pre_applied_name" type="text" placeholder="Messi">
+            </label>
+
+            <label>
+              Player number
+              <input name="pre_applied_number" type="text" placeholder="10">
+            </label>
+          </div>
+
+          <label class="span-2">
+            Verified design detail
+            <input name="verified_design_detail" type="text" placeholder="Optional: a verified visual detail only">
+          </label>
+        </form>
+
+        <form id="bundleForm" class="fact-grid hidden">
+          <label class="span-2">
+            Bundle name
+            <input name="bundle_name" type="text" placeholder="Inter Miami Kids Bundle 2026/27" required>
+          </label>
+
+          <div class="span-2 bundle-items-field">
+            <span class="field-label">Included bundle items</span>
+            <input name="bundle_items" type="hidden">
+            <div class="bundle-item-controls">
+              <input id="bundleItemTheme" type="text" placeholder="Team / theme, e.g. Inter Miami">
+              <input id="bundleItemSeason" type="text" placeholder="Season, e.g. 2026/27">
+              <select id="bundleProductSelect" aria-label="Bundle product">
+                <option value="Kit">Kit</option>
+                <option value="Adult Kit">Adult Kit</option>
+                <option value="Shirt">Shirt</option>
+                <option value="Long Sleeve Shirt">Long Sleeve Shirt</option>
+                <option value="another">Another</option>
+              </select>
+              <select id="bundleKitTypeSelect" aria-label="Bundle kit type">
+                <option value="Home">Home</option>
+                <option value="Away">Away</option>
+                <option value="Third">Third</option>
+                <option value="Goalkeeper">Goalkeeper</option>
+              </select>
+              <select id="bundleSocksSelect" aria-label="Bundle socks option">
+                <option value="With Socks">With Socks</option>
+                <option value="No Socks">No Socks</option>
+              </select>
+              <select id="bundlePrintSelect" aria-label="Bundle print option">
+                <option value="No Printed">No Printed</option>
+                <option value="Printed">Printed</option>
+              </select>
+              <div id="bundlePrintFields" class="bundle-print-fields">
+                <input id="bundlePrintName" type="text" placeholder="Name, e.g. MESSI">
+                <input id="bundlePrintNumber" type="text" placeholder="Number, e.g. 10">
+              </div>
+              <input id="bundleItemAnother" class="another-input" type="text" placeholder="Enter another bundle item">
+              <button id="addBundleItemBtn" type="button">Add</button>
+            </div>
+            <div id="bundleItemsSummary" class="bundle-items-summary">Added items: 0</div>
+            <div id="bundleItemsList" class="bundle-items-list" aria-live="polite"></div>
+          </div>
+
+          <label class="span-2">
+            Verified bundle detail
+            <input name="verified_design_detail" type="text" placeholder="Optional: a verified bundle-specific detail only">
+          </label>
+        </form>
+      </section>
+
+      <section class="panel output-panel" aria-labelledby="output-title">
+        <div class="section-heading">
+          <h2 id="output-title">Output</h2>
+          <div class="status-line">
+            <span id="qaBadge" class="badge neutral">not run</span>
+            <button id="copyBtn" type="button">Copy HTML</button>
+          </div>
+        </div>
+
+        <div class="tabs" role="tablist" aria-label="Output views">
+          <button class="tab active" type="button" data-view="preview">Preview</button>
+          <button class="tab" type="button" data-view="html">HTML</button>
+          <button class="tab" type="button" data-view="audit">Audit</button>
+        </div>
+
+        <div id="previewView" class="view active">
+          <article id="descriptionPreview" class="description-preview empty">
+            Generate a description to preview it here.
+          </article>
+        </div>
+
+        <div id="htmlView" class="view">
+          <textarea id="htmlOutput" readonly rows="18"></textarea>
+        </div>
+
+        <div id="auditView" class="view">
+          <pre id="auditOutput">qa_status: not_run</pre>
+        </div>
+      </section>
+    </main>
+
+    <script src="./templates/shared/design-detail-tails.js"></script>
+    <script src="./templates/product/product-templates.js"></script>
+    <script src="./templates/bundle/bundle-templates.js"></script>
+    <script src="./templates/template-registry.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
