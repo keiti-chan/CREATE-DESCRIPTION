@@ -16,10 +16,9 @@
     "<li>If you add personalisation, check the spelling carefully. Names can contain up to 13 letters and numbers up to 2 digits.</li>";
 
   const playerPrint =
-    "<li><strong>Player print:</strong> {player_name} name and number {player_number} are already applied to the back of the shirt.</li>";
+    "<li><strong>Player print:</strong> {player_name} name and number {player_number} are included in this listing.</li>";
 
   const playerOrderNotes = [
-    "<li>This listing already includes the {player_name} name and number {player_number}.</li>",
     "<li>Additional name-and-number personalisation is not available on this product.</li>"
   ];
 
@@ -69,8 +68,8 @@
 
   function playerFullKit(audience, withSocks) {
     const opening = withSocks
-      ? "The {product_name} comes with a {sleeve_label} shirt, matching shorts and matching socks. The {player_name} name and number {player_number} are already applied to the back of the shirt."
-      : "The {product_name} comes with a {sleeve_label} shirt and matching shorts. Socks are not included. The {player_name} name and number {player_number} are already applied to the back of the shirt.";
+      ? "The {product_name} comes with a {sleeve_label} shirt, matching shorts and matching socks."
+      : "The {product_name} comes with a {sleeve_label} shirt and matching shorts. Socks are not included.";
 
     return branch(opening, playerPrint, playerFullKitBeforeOrder(withSocks));
   }
@@ -85,7 +84,7 @@
 
   function playerShirtOnly(audience) {
     return branch(
-      "The {product_name} is a {sleeve_label} shirt-only listing. The {player_name} name and number {player_number} are already applied to the back of the shirt.",
+      "The {product_name} is a {sleeve_label} shirt-only listing. Shorts and socks are not included.",
       playerPrint,
       playerShirtOnlyBeforeOrder()
     );

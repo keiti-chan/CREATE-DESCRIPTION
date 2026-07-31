@@ -707,7 +707,10 @@ function renderDescription(facts, branch) {
 
   const designDetail = displayDesignDetail(facts.verified_design_detail);
   if (designDetail) {
-    opening += ` It features ${esc(designDetail)}.`;
+    const productIdentity = `The ${esc(facts.product_name)}`;
+    opening = opening.startsWith(productIdentity)
+      ? `${productIdentity} features ${esc(designDetail)}. It${opening.slice(productIdentity.length)}`
+      : `${opening} It features ${esc(designDetail)}.`;
   }
 
   const sizeLine = `<li><strong>Sizes:</strong> ${esc(facts.visible_size_range)}.${sizeGuideSentence(facts)}</li>`;
