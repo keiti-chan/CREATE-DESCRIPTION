@@ -33,8 +33,7 @@ let bundleItems = [];
 const defaultFacts = {
   site: "KFK",
   size_guide_tab_status: "confirmed_present",
-  size_guide_location: "site_page",
-  size_guide_url: "https://kidsfootballkit.co.uk/size-chart/",
+  size_guide_location: "product_tab",
   verification_status: "verified",
   fact_status: "ready_for_generation",
   source_notes: "Generated from simplified KFK description form."
@@ -107,14 +106,14 @@ function getBundleFacts() {
 
 function applyDerivedSizeFacts(facts) {
   if (facts.audience === "women") {
-    facts.visible_size_range = "Women sizes S-XXL";
+    facts.visible_size_range = "Women sizes S–2XL";
     facts.size_profile = "women_s_2xl";
     return;
   }
 
   if (facts.audience === "baby") {
-    facts.visible_size_range = "Baby sizes 16-28";
-    facts.size_profile = "baby_16_28";
+    facts.visible_size_range = "Baby sizes 9 and 12 (3–24 months)";
+    facts.size_profile = "baby_9_12";
     return;
   }
 
@@ -513,19 +512,19 @@ function detectBranch(facts) {
   if (facts.product_type === "full_kit" && ["kids", "women", "baby"].includes(facts.audience)) {
     if (facts.included_items === "shirt_and_shorts" && facts.socks_status === "unavailable") {
       if (facts.listing_configuration === "plain_customisable") {
-        return "plain_customisable_kids_full_kit_without_socks";
+        return `plain_customisable_${facts.audience}_full_kit_without_socks`;
       }
       if (facts.listing_configuration === "pre_applied_player") {
-        return "pre_applied_player_kids_full_kit_without_socks";
+        return `pre_applied_player_${facts.audience}_full_kit_without_socks`;
       }
     }
 
     if (facts.included_items === "shirt_shorts_and_socks" && facts.socks_status === "included") {
       if (facts.listing_configuration === "plain_customisable") {
-        return "plain_customisable_kids_full_kit_with_socks";
+        return `plain_customisable_${facts.audience}_full_kit_with_socks`;
       }
       if (facts.listing_configuration === "pre_applied_player") {
-        return "pre_applied_player_kids_full_kit_with_socks";
+        return `pre_applied_player_${facts.audience}_full_kit_with_socks`;
       }
     }
   }
@@ -598,8 +597,8 @@ function validateFacts(facts, branch) {
     blockers.push("Women listings must use size_profile women_s_2xl.");
   }
 
-  if (facts.audience === "baby" && facts.size_profile !== "baby_16_28") {
-    blockers.push("Baby listings must use size_profile baby_16_28.");
+  if (facts.audience === "baby" && facts.size_profile !== "baby_9_12") {
+    blockers.push("Baby listings must use size_profile baby_9_12.");
   }
 
   if (facts.size_profile === "kids_16_28" && !facts.visible_size_range.toLowerCase().includes("kids sizes 16-28")) {
@@ -610,12 +609,12 @@ function validateFacts(facts, branch) {
     blockers.push("visible_size_range must match Adult sizes S-XXL for size_profile adult_s_2xl.");
   }
 
-  if (facts.size_profile === "women_s_2xl" && !facts.visible_size_range.toLowerCase().includes("women sizes s-xxl")) {
-    blockers.push("visible_size_range must match Women sizes S-XXL for size_profile women_s_2xl.");
+  if (facts.size_profile === "women_s_2xl" && !facts.visible_size_range.toLowerCase().includes("women sizes s–2xl")) {
+    blockers.push("visible_size_range must match Women sizes S–2XL for size_profile women_s_2xl.");
   }
 
-  if (facts.size_profile === "baby_16_28" && !facts.visible_size_range.toLowerCase().includes("baby sizes 16-28")) {
-    blockers.push("visible_size_range must match Baby sizes 16-28 for size_profile baby_16_28.");
+  if (facts.size_profile === "baby_9_12" && !facts.visible_size_range.toLowerCase().includes("baby sizes 9 and 12 (3–24 months)")) {
+    blockers.push("visible_size_range must match Baby sizes 9 and 12 (3–24 months) for size_profile baby_9_12.");
   }
 
   if (facts.listing_configuration === "plain_customisable") {
@@ -696,6 +695,11 @@ function includedItemsHtml(facts) {
 function renderDescription(facts, branch) {
   const template = pickBranchVariant(branch, facts);
   let opening = interpolate(template.opening, facts);
+
+  const designDetail = displayDesignDetail(facts.verified_design_detail);
+  if (designDetail) {
+    opening += ` It features ${esc(designDetail)}.`;
+  }
 
   const sizeLine = `<li><strong>Sizes:</strong> ${esc(facts.visible_size_range)}.${sizeGuideSentence(facts)}</li>`;
   const kitLine = `<li><strong>Kit type:</strong> ${esc(titleCaseToken(facts.kit_type))} kit with a ${esc(shirtLabel(facts))} shirt.</li>`;
