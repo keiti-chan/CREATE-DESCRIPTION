@@ -31,7 +31,8 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  padding: 22px 28px;
+  min-height: 132px;
+  padding: 16px max(28px, calc((100vw - 1480px) / 2));
   border-bottom: 1px solid var(--border);
   background: var(--panel);
 }
@@ -94,7 +95,7 @@ button:disabled {
 .mode-tabs {
   display: inline-flex;
   gap: 6px;
-  margin-top: 14px;
+  margin-top: 10px;
   padding: 4px;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -121,13 +122,19 @@ button:disabled {
   gap: 10px;
 }
 
+.top-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .layout {
   display: grid;
-  grid-template-columns: minmax(420px, 0.95fr) minmax(420px, 1.05fr);
-  gap: 18px;
-  max-width: 1480px;
+  grid-template-columns: minmax(520px, 0.9fr) minmax(620px, 1.1fr);
+  align-items: start;
+  gap: 20px;
+  max-width: 1540px;
   margin: 0 auto;
-  padding: 18px;
+  padding: 20px 28px 32px;
 }
 
 .panel {
@@ -182,8 +189,8 @@ button:disabled {
 .fact-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-  padding: 18px;
+  gap: 16px;
+  padding: 20px;
 }
 
 .hidden {
@@ -263,9 +270,27 @@ textarea:focus {
 .bundle-item-controls,
 .product-item-controls {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 8px;
   align-items: start;
+}
+
+.product-item-controls > :nth-child(-n + 3) {
+  grid-column: span 2;
+}
+
+.product-item-controls > :nth-child(4),
+.product-item-controls > :nth-child(5) {
+  grid-column: span 3;
+}
+
+.bundle-item-controls > input,
+.bundle-item-controls > select {
+  grid-column: span 2;
+}
+
+.bundle-item-controls > button {
+  grid-column: 5 / -1;
 }
 
 .bundle-item-controls .another-input.visible {
@@ -362,11 +387,13 @@ textarea:focus {
 }
 
 .description-preview {
-  min-height: 440px;
+  min-height: 360px;
+  max-height: calc(100vh - 260px);
   border: 1px solid var(--border);
   border-radius: 8px;
   background: #ffffff;
   padding: 20px;
+  overflow: auto;
 }
 
 .description-preview.empty {
@@ -392,7 +419,8 @@ textarea:focus {
 #htmlOutput,
 #auditOutput {
   width: 100%;
-  min-height: 440px;
+  min-height: 360px;
+  max-height: calc(100vh - 260px);
   margin: 0;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -412,7 +440,12 @@ textarea:focus {
   .topbar {
     align-items: flex-start;
     flex-direction: column;
+    min-height: 0;
     padding: 18px;
+  }
+
+  .top-actions {
+    justify-content: flex-start;
   }
 
   .layout {
@@ -449,6 +482,12 @@ textarea:focus {
     grid-template-columns: 1fr;
   }
 
+  .bundle-item-controls > input,
+  .bundle-item-controls > select,
+  .bundle-item-controls > button {
+    grid-column: 1;
+  }
+
   .bundle-item-controls .another-input.visible {
     grid-column: 1;
   }
@@ -461,5 +500,9 @@ textarea:focus {
 
   .product-item-controls {
     grid-template-columns: 1fr;
+  }
+
+  .product-item-controls > :nth-child(-n + 5) {
+    grid-column: 1;
   }
 }
