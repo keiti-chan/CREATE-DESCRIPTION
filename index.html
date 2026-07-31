@@ -51,6 +51,8 @@
             <select name="audience">
               <option value="kids">kids</option>
               <option value="adult">adult</option>
+              <option value="women">women</option>
+              <option value="baby">baby</option>
               <option value="another">Another</option>
             </select>
             <input class="another-input" name="audience_another" type="text" placeholder="Enter another audience">
@@ -133,10 +135,6 @@
             </label>
           </div>
 
-          <label class="span-2">
-            Verified design detail
-            <input name="verified_design_detail" type="text" placeholder="Optional: a verified visual detail only">
-          </label>
         </form>
 
         <form id="bundleForm" class="fact-grid hidden">
@@ -183,10 +181,6 @@
             <div id="bundleItemsList" class="bundle-items-list" aria-live="polite"></div>
           </div>
 
-          <label class="span-2">
-            Verified bundle detail
-            <input name="verified_design_detail" type="text" placeholder="Optional: a verified bundle-specific detail only">
-          </label>
         </form>
       </section>
 
@@ -221,7 +215,6 @@
       </section>
     </main>
 
-    <script src="./templates/shared/design-detail-tails.js"></script>
     <script src="./templates/product/product-templates.js"></script>
     <script src="./templates/bundle/bundle-templates.js"></script>
     <script src="./templates/template-registry.js"></script>

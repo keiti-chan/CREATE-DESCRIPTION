@@ -106,6 +106,18 @@ function getBundleFacts() {
 }
 
 function applyDerivedSizeFacts(facts) {
+  if (facts.audience === "women") {
+    facts.visible_size_range = "Women sizes S-XXL";
+    facts.size_profile = "women_s_2xl";
+    return;
+  }
+
+  if (facts.audience === "baby") {
+    facts.visible_size_range = "Baby sizes 16-28";
+    facts.size_profile = "baby_16_28";
+    return;
+  }
+
   if (facts.audience === "adult") {
     facts.visible_size_range = "Adult sizes S-XXL";
     facts.size_profile = "adult_s_2xl";
@@ -251,8 +263,20 @@ function usesBundleSocks() {
 
 function normaliseAudience(facts) {
   const value = String(facts.audience || "").trim().toLowerCase();
-  const adultAliases = new Set(["adult", "men", "mens", "men's", "man", "male", "women", "womens", "women's"]);
+  const adultAliases = new Set(["adult", "men", "mens", "men's", "man", "male"]);
+  const womenAliases = new Set(["women", "womens", "women's", "woman", "female", "ladies"]);
+  const babyAliases = new Set(["baby", "infant", "toddler"]);
   const kidsAliases = new Set(["kids", "kid", "children", "child", "youth", "junior", "boys", "girls"]);
+
+  if (womenAliases.has(value)) {
+    facts.audience = "women";
+    return;
+  }
+
+  if (babyAliases.has(value)) {
+    facts.audience = "baby";
+    return;
+  }
 
   if (adultAliases.has(value)) {
     facts.audience = "adult";
@@ -356,7 +380,6 @@ function interpolate(template, facts) {
     .replaceAll("{sock_phrase}", facts.socks_status === "included" ? " and socks" : "")
     .replaceAll("{player_name}", esc(displayName(facts.pre_applied_name)))
     .replaceAll("{player_number}", esc(facts.pre_applied_number))
-    .replaceAll("{design_detail}", esc(displayDesignDetail(facts.verified_design_detail)))
     .replaceAll("{bundle_name}", esc(facts.bundle_name))
     .replaceAll("{bundle_theme}", esc(facts.bundle_theme))
     .replaceAll("{audience_label}", esc(audienceLabel(facts.audience)))
@@ -367,6 +390,8 @@ function interpolate(template, facts) {
 function audienceLabel(value) {
   if (value === "kids") return "kids";
   if (value === "adult") return "adult buyers";
+  if (value === "women") return "women";
+  if (value === "baby") return "babies";
   if (value === "family") return "families";
   return value || "buyers";
 }
@@ -458,10 +483,11 @@ function bundlePersonalisationLine(facts) {
 }
 
 function bundleHasPrintedItem(facts) {
-  return facts.bundle_items_list.some((item) => /\b[A-Z]{2,}\s+\d{1,2}\b/.test(item));
+  return Array.isArray(facts.bundle_items_list) && facts.bundle_items_list.some((item) => /\b[A-Z]{2,}\s+\d{1,2}\b/.test(item));
 }
 
 function detectBundleBranch(facts) {
+  if (!Array.isArray(facts.bundle_items_list)) return "mixed_bundle";
   const items = facts.bundle_items_list.map((item) => item.toLowerCase());
   const hasPrinted = bundleHasPrintedItem(facts);
   const hasKit = items.some((item) => item.includes(" kit"));
@@ -484,7 +510,7 @@ function detectBranch(facts) {
     return `${facts.listing_configuration}_${facts.audience}_shirt_only`;
   }
 
-  if (facts.product_type === "full_kit" && facts.audience === "kids") {
+  if (facts.product_type === "full_kit" && ["kids", "women", "baby"].includes(facts.audience)) {
     if (facts.included_items === "shirt_and_shorts" && facts.socks_status === "unavailable") {
       if (facts.listing_configuration === "plain_customisable") {
         return "plain_customisable_kids_full_kit_without_socks";
@@ -568,12 +594,28 @@ function validateFacts(facts, branch) {
     blockers.push("Adult listings must use size_profile adult_s_2xl.");
   }
 
+  if (facts.audience === "women" && facts.size_profile !== "women_s_2xl") {
+    blockers.push("Women listings must use size_profile women_s_2xl.");
+  }
+
+  if (facts.audience === "baby" && facts.size_profile !== "baby_16_28") {
+    blockers.push("Baby listings must use size_profile baby_16_28.");
+  }
+
   if (facts.size_profile === "kids_16_28" && !facts.visible_size_range.toLowerCase().includes("kids sizes 16-28")) {
     blockers.push("visible_size_range must match Kids sizes 16-28 for size_profile kids_16_28.");
   }
 
   if (facts.size_profile === "adult_s_2xl" && !facts.visible_size_range.toLowerCase().includes("adult sizes s-xxl")) {
     blockers.push("visible_size_range must match Adult sizes S-XXL for size_profile adult_s_2xl.");
+  }
+
+  if (facts.size_profile === "women_s_2xl" && !facts.visible_size_range.toLowerCase().includes("women sizes s-xxl")) {
+    blockers.push("visible_size_range must match Women sizes S-XXL for size_profile women_s_2xl.");
+  }
+
+  if (facts.size_profile === "baby_16_28" && !facts.visible_size_range.toLowerCase().includes("baby sizes 16-28")) {
+    blockers.push("visible_size_range must match Baby sizes 16-28 for size_profile baby_16_28.");
   }
 
   if (facts.listing_configuration === "plain_customisable") {
@@ -639,24 +681,21 @@ function includedItemsHtml(facts) {
     return `<li>${shirtText}</li>`;
   }
 
-  const socksText = facts.socks_status === "included"
-    ? "<li>Matching socks</li>"
-    : "<li>Socks are not included</li>";
-
-  return [
+  const items = [
     `<li>${shirtText}</li>`,
-    "<li>Matching shorts</li>",
-    socksText
-  ].join("\n");
+    "<li>Matching shorts</li>"
+  ];
+
+  if (facts.socks_status === "included") {
+    items.push("<li>Matching socks</li>");
+  }
+
+  return items.join("\n");
 }
 
 function renderDescription(facts, branch) {
   const template = pickBranchVariant(branch, facts);
   let opening = interpolate(template.opening, facts);
-
-  if (facts.verified_design_detail) {
-    opening += interpolate(pick(templateLibrary.designDetailTails, facts, 2), facts);
-  }
 
   const sizeLine = `<li><strong>Sizes:</strong> ${esc(facts.visible_size_range)}.${sizeGuideSentence(facts)}</li>`;
   const kitLine = `<li><strong>Kit type:</strong> ${esc(titleCaseToken(facts.kit_type))} kit with a ${esc(shirtLabel(facts))} shirt.</li>`;
@@ -690,10 +729,6 @@ function renderBundleDescription(facts) {
   const branchConfig = templateLibrary.bundle.branches[bundleBranch] || templateLibrary.bundle.branches.mixed_bundle;
   const template = pick(branchConfig.variants, facts, 1);
   let opening = interpolate(template.opening, facts);
-
-  if (displayDesignDetail(facts.verified_design_detail)) {
-    opening += interpolate(pick(templateLibrary.designDetailTails, facts, 2), facts);
-  }
 
   const itemsHtml = facts.bundle_items_list.map((item) => `<li>${esc(formatBundleItemForOutput(item))}</li>`).join("\n");
   const keyDetail = interpolate(template.keyDetail, facts);
@@ -947,8 +982,7 @@ function loadSample() {
     socks_status: "unavailable",
     listing_configuration: "plain_customisable",
     pre_applied_name: "",
-    pre_applied_number: "",
-    verified_design_detail: "the current home colour layout shown in the approved product image"
+    pre_applied_number: ""
   };
 
   Object.entries(sample).forEach(([name, value]) => {
@@ -963,8 +997,7 @@ function loadSample() {
 function loadBundleSample() {
   const sample = {
     bundle_name: "Inter Miami Kids Bundle 2026/27",
-    bundle_items: "Inter Miami 2026/27 Home Kit With Socks\nInter Miami 2026/27 Away Kit With Socks",
-    verified_design_detail: "the current home and away colour layouts"
+    bundle_items: "Inter Miami 2026/27 Home Kit With Socks\nInter Miami 2026/27 Away Kit With Socks"
   };
 
   Object.entries(sample).forEach(([name, value]) => {
