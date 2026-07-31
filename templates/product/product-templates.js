@@ -10,19 +10,19 @@
   const branches = {};
 
   const customPersonalisation = [
-    "<li><strong>Personalisation:</strong> Add an optional name and number using the product options. KFK supports up to 13 letters for the name and up to 2 digits for the number.</li>",
-    "<li><strong>Personalisation:</strong> Custom name-and-number printing is available from the product options. KFK supports up to 13 letters for the name and up to 2 digits for the number.</li>",
-    "<li><strong>Personalisation:</strong> You can choose an optional name and number before checkout. KFK supports up to 13 letters for the name and up to 2 digits for the number.</li>",
-    "<li><strong>Personalisation:</strong> Name-and-number personalisation can be added if required. KFK supports up to 13 letters for the name and up to 2 digits for the number.</li>",
-    "<li><strong>Personalisation:</strong> Select the product options to add a custom name and number. KFK supports up to 13 letters for the name and up to 2 digits for the number.</li>"
+    "<li><strong>Personalisation:</strong> Add an optional name and number using the product options.</li>",
+    "<li><strong>Personalisation:</strong> Custom name-and-number printing is available from the product options.</li>",
+    "<li><strong>Personalisation:</strong> You can choose an optional name and number before checkout.</li>",
+    "<li><strong>Personalisation:</strong> Name-and-number personalisation can be added if required.</li>",
+    "<li><strong>Personalisation:</strong> Select the product options to add a custom name and number.</li>"
   ];
 
   const customOrderNotes = [
-    "<li>Check all spelling and number choices carefully before placing a personalised order.</li>",
-    "<li>Review the name spelling and number before checkout if personalisation is selected.</li>",
-    "<li>Personalised orders should be checked carefully, as the entered name and number will be used for printing.</li>",
-    "<li>Make sure the selected name and number are correct before submitting the order.</li>",
-    "<li>Use the product options carefully if adding personalisation.</li>"
+    "<li>If you add personalisation, check the spelling carefully. Names can contain up to 13 letters and numbers up to 2 digits.</li>",
+    "<li>Before checkout, confirm the name and number carefully. Names can contain up to 13 letters and numbers up to 2 digits.</li>",
+    "<li>For a personalised order, check every entered detail. Names can contain up to 13 letters and numbers up to 2 digits.</li>",
+    "<li>Review the selected name and number before ordering. Names can contain up to 13 letters and numbers up to 2 digits.</li>",
+    "<li>Check personalised details carefully before submitting the order. Names can contain up to 13 letters and numbers up to 2 digits.</li>"
   ];
 
   const playerPrint = [
@@ -34,11 +34,11 @@
   ];
 
   const playerOrderNotes = [
-    "<li>This product already includes the {player_name} name and number {player_number} print.</li>",
-    "<li>The supplied player print is already set on this version.</li>",
-    "<li>Choose another customisable product if you need a different player name or number.</li>",
-    "<li>The printed name and number are fixed for this product.</li>",
-    "<li>This version is supplied as shown with the confirmed player print.</li>"
+    "<li>Additional name-and-number personalisation is not available on this product.</li>",
+    "<li>A different name or number cannot be added to this fixed-print version.</li>",
+    "<li>The player name and number are set for this listing and cannot be changed.</li>",
+    "<li>This product is supplied with a fixed player print; other name-and-number options are not available.</li>",
+    "<li>Choose a customisable listing if you need another player name or number.</li>"
   ];
 
   function branch(variants) {
@@ -92,7 +92,7 @@
       ? "<li>This listing includes the shirt, matching shorts and matching socks.</li>"
       : "<li>This product includes the shirt and matching shorts. Socks are not included.</li>";
 
-    return [playerOrderNotes[index], "<li>A different name or number cannot be added to this product.</li>", inclusionLine];
+    return [playerOrderNotes[index], inclusionLine];
   }
 
   function shirtOnlyBeforeOrder(index) {
@@ -105,7 +105,6 @@
   function playerShirtOnlyBeforeOrder(index) {
     return [
       playerOrderNotes[index],
-      "<li>A different name or number cannot be added to this product.</li>",
       "<li>This is a single-item product. Shorts and socks are not included.</li>"
     ];
   }

@@ -98,7 +98,7 @@ function syncProductSelectionFields() {
   let isSuit = productKindSelect.value === "Suit";
   const isPrinted = productPrintSelect.value === "pre_applied_player";
 
-  if (productAudienceSelect.value === "baby" && !isSuit && document.activeElement === productAudienceSelect) {
+  if (productAudienceSelect.value === "baby" && !isSuit) {
     productKindSelect.value = "Suit";
     isKit = false;
     isLongSleeve = false;
@@ -384,6 +384,12 @@ function shirtLabel(facts) {
     return facts.sleeve_length.replaceAll("_", "-").toLowerCase();
   }
   return "football";
+}
+
+function sleeveLengthLabel(facts) {
+  if (facts.sleeve_length === "short_sleeve") return "Short sleeve";
+  if (facts.sleeve_length === "long_sleeve") return "Long sleeve";
+  return "";
 }
 
 function productItemLabel(facts) {
@@ -789,8 +795,10 @@ function renderDescription(facts, branch) {
 
   const sizeLine = `<li><strong>Sizes:</strong> ${esc(facts.visible_size_range)}.${sizeGuideSentence(facts)}</li>`;
   const kitLine = facts.product_type === "full_kit"
-    ? `<li><strong>Kit type:</strong> ${esc(titleCaseToken(facts.kit_type))} kit with a ${esc(shirtLabel(facts))} shirt.</li>`
+    ? `<li><strong>Kit type:</strong> ${esc(titleCaseToken(facts.kit_type))} kit.</li>`
     : `<li><strong>Product type:</strong> ${esc(titleCaseToken(facts.kit_type))} ${esc(productItemLabel(facts))}.</li>`;
+  const sleeveLabel = sleeveLengthLabel(facts);
+  const sleeveLine = sleeveLabel ? `<li><strong>Sleeve length:</strong> ${esc(sleeveLabel)}.</li>` : "";
   const configurationLine = interpolate(template.keyDetail, facts);
   const beforeOrder = template.beforeOrder.map((line) => interpolate(line, facts)).join("\n");
 
@@ -806,6 +814,7 @@ function renderDescription(facts, branch) {
     "<ul>",
     sizeLine,
     kitLine,
+    sleeveLine,
     configurationLine,
     "</ul>",
     "",
