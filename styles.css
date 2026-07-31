@@ -254,12 +254,14 @@ textarea:focus {
   outline: 3px solid rgba(15, 118, 110, 0.16);
 }
 
-.bundle-items-field {
+.bundle-items-field,
+.product-selection-field {
   display: grid;
   gap: 8px;
 }
 
-.bundle-item-controls {
+.bundle-item-controls,
+.product-item-controls {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
@@ -270,14 +272,16 @@ textarea:focus {
   grid-column: 1 / -1;
 }
 
-.bundle-print-fields {
+.bundle-print-fields,
+.product-print-fields {
   display: none;
   grid-column: 1 / -1;
   grid-template-columns: minmax(160px, 1fr) minmax(120px, 0.7fr);
   gap: 8px;
 }
 
-.bundle-print-fields.visible {
+.bundle-print-fields.visible,
+.product-print-fields.visible {
   display: grid;
 }
 
@@ -449,8 +453,13 @@ textarea:focus {
     grid-column: 1;
   }
 
-  .bundle-print-fields {
+  .bundle-print-fields,
+  .product-print-fields {
     grid-column: 1;
+    grid-template-columns: 1fr;
+  }
+
+  .product-item-controls {
     grid-template-columns: 1fr;
   }
 }

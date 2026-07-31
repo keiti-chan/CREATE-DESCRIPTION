@@ -9,7 +9,14 @@ const qaBadge = document.querySelector("#qaBadge");
 const preview = document.querySelector("#descriptionPreview");
 const htmlOutput = document.querySelector("#htmlOutput");
 const auditOutput = document.querySelector("#auditOutput");
-const playerFields = document.querySelector("#playerFields");
+const productAudienceSelect = document.querySelector("#productAudienceSelect");
+const productKindSelect = document.querySelector("#productKindSelect");
+const productKitTypeSelect = document.querySelector("#productKitTypeSelect");
+const productSocksSelect = document.querySelector("#productSocksSelect");
+const productPrintSelect = document.querySelector("#productPrintSelect");
+const productPrintFields = document.querySelector("#productPrintFields");
+const productPrintName = document.querySelector("#productPrintName");
+const productPrintNumber = document.querySelector("#productPrintNumber");
 const bundleItemTheme = document.querySelector("#bundleItemTheme");
 const bundleItemSeason = document.querySelector("#bundleItemSeason");
 const bundleProductSelect = document.querySelector("#bundleProductSelect");
@@ -54,6 +61,7 @@ const forbiddenTerms = [
 ];
 
 function getFacts() {
+  syncProductSelectionFields();
   const data = new FormData(form);
   const facts = { ...defaultFacts };
   for (const [key, value] of data.entries()) {
@@ -82,6 +90,59 @@ function getFacts() {
   }
 
   return facts;
+}
+
+function syncProductSelectionFields() {
+  let isKit = productKindSelect.value === "Kit";
+  let isLongSleeve = productKindSelect.value === "Long Sleeve Shirt";
+  let isSuit = productKindSelect.value === "Suit";
+  const isPrinted = productPrintSelect.value === "pre_applied_player";
+
+  if (productAudienceSelect.value === "baby" && !isSuit && document.activeElement === productAudienceSelect) {
+    productKindSelect.value = "Suit";
+    isKit = false;
+    isLongSleeve = false;
+    isSuit = true;
+  }
+
+  if (isSuit) {
+    productAudienceSelect.value = "baby";
+  }
+
+  form.elements.audience.value = productAudienceSelect.value;
+  form.elements.product_type.value = isKit ? "full_kit" : "shirt_only";
+  form.elements.kit_type.value = productKitTypeSelect.value;
+  form.elements.sleeve_length.value = isSuit ? "baby_suit" : isLongSleeve ? "long_sleeve" : "short_sleeve";
+  form.elements.listing_configuration.value = productPrintSelect.value;
+
+  if (isKit) {
+    form.elements.socks_status.value = productSocksSelect.value;
+    form.elements.included_items.value = productSocksSelect.value === "included" ? "shirt_shorts_and_socks" : "shirt_and_shorts";
+  } else {
+    form.elements.socks_status.value = "not_applicable";
+    form.elements.included_items.value = "shirt_only";
+  }
+
+  productSocksSelect.classList.toggle("hidden", !isKit);
+  productPrintFields.classList.toggle("visible", isPrinted);
+  productPrintName.required = isPrinted;
+  productPrintNumber.required = isPrinted;
+
+  if (!isPrinted) {
+    productPrintName.value = "";
+    productPrintNumber.value = "";
+  }
+}
+
+function syncProductControlsFromFacts(facts) {
+  productAudienceSelect.value = facts.audience || "kids";
+  productKindSelect.value = facts.product_type === "full_kit" ? "Kit" : facts.sleeve_length === "baby_suit" ? "Suit" : facts.sleeve_length === "long_sleeve" ? "Long Sleeve Shirt" : "Shirt";
+  productKitTypeSelect.value = facts.kit_type || "home";
+  productSocksSelect.value = facts.socks_status === "included" ? "included" : "unavailable";
+  productPrintSelect.value = facts.listing_configuration || "plain_customisable";
+  productPrintName.value = facts.pre_applied_name || "";
+  productPrintNumber.value = facts.pre_applied_number || "";
+  syncProductSelectionFields();
 }
 
 function getBundleFacts() {
@@ -316,12 +377,19 @@ function titleCaseToken(value) {
 }
 
 function shirtLabel(facts) {
+  if (facts.sleeve_length === "baby_suit") return "baby suit";
   if (facts.sleeve_length === "long_sleeve") return "long-sleeve";
   if (facts.sleeve_length === "short_sleeve") return "short-sleeve";
   if (facts.sleeve_length && facts.sleeve_length !== "unknown") {
     return facts.sleeve_length.replaceAll("_", "-").toLowerCase();
   }
   return "football";
+}
+
+function productItemLabel(facts) {
+  if (facts.sleeve_length === "baby_suit") return "baby suit";
+  if (facts.sleeve_length === "long_sleeve") return "long-sleeve shirt";
+  return "football shirt";
 }
 
 function sentenceStart(value) {
@@ -376,6 +444,7 @@ function interpolate(template, facts) {
     .replaceAll("{season}", esc(facts.season))
     .replaceAll("{kit_type_label}", esc(titleCaseToken(facts.kit_type)))
     .replaceAll("{sleeve_label}", esc(shirtLabel(facts)))
+    .replaceAll("{product_item_label}", esc(productItemLabel(facts)))
     .replaceAll("{sock_phrase}", facts.socks_status === "included" ? " and socks" : "")
     .replaceAll("{player_name}", esc(displayName(facts.pre_applied_name)))
     .replaceAll("{player_number}", esc(facts.pre_applied_number))
@@ -509,7 +578,7 @@ function detectBranch(facts) {
     return `${facts.listing_configuration}_${facts.audience}_shirt_only`;
   }
 
-  if (facts.product_type === "full_kit" && ["kids", "women", "baby"].includes(facts.audience)) {
+  if (facts.product_type === "full_kit" && ["kids", "adult", "women", "baby"].includes(facts.audience)) {
     if (facts.included_items === "shirt_and_shorts" && facts.socks_status === "unavailable") {
       if (facts.listing_configuration === "plain_customisable") {
         return `plain_customisable_${facts.audience}_full_kit_without_socks`;
@@ -530,6 +599,22 @@ function detectBranch(facts) {
   }
 
   return null;
+}
+
+function productNameConflict(facts) {
+  const productName = String(facts.product_name || "").toLowerCase();
+  const saysFootballKit = /\bfootball\s+kit\b/.test(productName);
+  const saysShirt = /\b(?:football\s+)?shirt\b/.test(productName);
+
+  if (saysFootballKit && facts.product_type !== "full_kit") {
+    return "Product name says Football Kit, but Product selection is a single item. Confirm whether this should be Kit or Shirt.";
+  }
+
+  if (saysShirt && facts.product_type === "full_kit") {
+    return "Product name says Shirt, but Product selection is Kit. Confirm whether the listing includes shorts and socks.";
+  }
+
+  return "";
 }
 
 function validateFacts(facts, branch) {
@@ -566,6 +651,11 @@ function validateFacts(facts, branch) {
 
   if (facts.fact_status !== "ready_for_generation") {
     blockers.push("fact_status must be ready_for_generation.");
+  }
+
+  const identityConflict = productNameConflict(facts);
+  if (identityConflict) {
+    blockers.push(identityConflict);
   }
 
   if (facts.product_type === "full_kit" && facts.included_items === "unknown") {
@@ -672,9 +762,10 @@ function sizeGuideSentence(facts) {
 }
 
 function includedItemsHtml(facts) {
+  const itemLabel = sentenceStart(productItemLabel(facts));
   const shirtText = facts.listing_configuration === "pre_applied_player"
-    ? `${esc(sentenceStart(shirtLabel(facts)))} shirt with ${esc(displayName(facts.pre_applied_name))} name and number ${esc(facts.pre_applied_number)} already applied to the back`
-    : `${esc(sentenceStart(shirtLabel(facts)))} shirt`;
+    ? `${esc(itemLabel)} with ${esc(displayName(facts.pre_applied_name))} name and number ${esc(facts.pre_applied_number)} already applied to the back`
+    : esc(itemLabel);
 
   if (facts.product_type === "shirt_only") {
     return `<li>${shirtText}</li>`;
@@ -696,13 +787,10 @@ function renderDescription(facts, branch) {
   const template = pickBranchVariant(branch, facts);
   let opening = interpolate(template.opening, facts);
 
-  const designDetail = displayDesignDetail(facts.verified_design_detail);
-  if (designDetail) {
-    opening += ` It features ${esc(designDetail)}.`;
-  }
-
   const sizeLine = `<li><strong>Sizes:</strong> ${esc(facts.visible_size_range)}.${sizeGuideSentence(facts)}</li>`;
-  const kitLine = `<li><strong>Kit type:</strong> ${esc(titleCaseToken(facts.kit_type))} kit with a ${esc(shirtLabel(facts))} shirt.</li>`;
+  const kitLine = facts.product_type === "full_kit"
+    ? `<li><strong>Kit type:</strong> ${esc(titleCaseToken(facts.kit_type))} kit with a ${esc(shirtLabel(facts))} shirt.</li>`
+    : `<li><strong>Product type:</strong> ${esc(titleCaseToken(facts.kit_type))} ${esc(productItemLabel(facts))}.</li>`;
   const configurationLine = interpolate(template.keyDetail, facts);
   const beforeOrder = template.beforeOrder.map((line) => interpolate(line, facts)).join("\n");
 
@@ -993,7 +1081,7 @@ function loadSample() {
     const field = form.elements[name];
     if (field) field.value = value;
   });
-  syncConditionalFields();
+  syncProductControlsFromFacts(sample);
   variantOffset = 0;
   generate();
 }
@@ -1014,12 +1102,6 @@ function loadBundleSample() {
   renderBundleItemsList();
   variantOffset = 0;
   generate();
-}
-
-function syncConditionalFields() {
-  const facts = getFacts();
-  const isPlayer = facts.listing_configuration === "pre_applied_player";
-  playerFields.classList.toggle("visible", isPlayer);
 }
 
 function syncAnotherInputs() {
@@ -1048,9 +1130,11 @@ function setMode(mode) {
   htmlOutput.value = "";
   auditOutput.textContent = "qa_status: not_run";
   syncAnotherInputs();
+  syncProductSelectionFields();
 }
 
 function syncProductTypeDefaults() {
+  syncProductSelectionFields();
   const productType = form.elements.product_type.value;
   if (productType === "shirt_only") {
     form.elements.included_items.value = "shirt_only";
@@ -1076,16 +1160,18 @@ loadSampleBtn.addEventListener("click", loadSample);
 nextVariantBtn.addEventListener("click", () => {
   scheduleGenerate({ advanceVariant: true });
 });
-form.elements.listing_configuration.addEventListener("change", () => {
-  syncConditionalFields();
-  variantOffset = 0;
-  scheduleGenerate();
-});
-form.elements.product_type.addEventListener("change", () => {
-  syncProductTypeDefaults();
-  syncAnotherInputs();
-  variantOffset = 0;
-  scheduleGenerate();
+[
+  productAudienceSelect,
+  productKindSelect,
+  productKitTypeSelect,
+  productSocksSelect,
+  productPrintSelect
+].forEach((field) => {
+  field.addEventListener("change", () => {
+    syncProductSelectionFields();
+    variantOffset = 0;
+    scheduleGenerate();
+  });
 });
 form.querySelectorAll("select").forEach((select) => {
   select.addEventListener("change", () => {

@@ -46,99 +46,48 @@
             <input name="season" type="text" placeholder="2026/27" required>
           </label>
 
-          <label>
-            Audience
-            <select name="audience">
-              <option value="kids">kids</option>
-              <option value="adult">adult</option>
-              <option value="women">women</option>
-              <option value="baby">baby</option>
-              <option value="another">Another</option>
-            </select>
-            <input class="another-input" name="audience_another" type="text" placeholder="Enter another audience">
-          </label>
-
-          <label>
-            Product type
-            <select name="product_type">
-              <option value="full_kit">full_kit</option>
-              <option value="shirt_only">shirt_only</option>
-              <option value="another">Another</option>
-            </select>
-            <input class="another-input" name="product_type_another" type="text" placeholder="Enter another product type">
-          </label>
-
-          <label>
-            Kit type
-            <select name="kit_type">
-              <option value="home">home</option>
-              <option value="away">away</option>
-              <option value="third">third</option>
-              <option value="goalkeeper">goalkeeper</option>
-              <option value="training">training</option>
-              <option value="special_edition">special_edition</option>
-              <option value="another">Another</option>
-            </select>
-            <input class="another-input" name="kit_type_another" type="text" placeholder="Enter another kit type">
-          </label>
-
-          <label>
-            Sleeve length
-            <select name="sleeve_length">
-              <option value="short_sleeve">short_sleeve</option>
-              <option value="long_sleeve">long_sleeve</option>
-              <option value="another">Another</option>
-            </select>
-            <input class="another-input" name="sleeve_length_another" type="text" placeholder="Enter another sleeve type">
-          </label>
-
-          <label>
-            Included items
-            <select name="included_items">
-              <option value="shirt_and_shorts">shirt_and_shorts</option>
-              <option value="shirt_shorts_and_socks">shirt_shorts_and_socks</option>
-              <option value="shirt_only">shirt_only</option>
-              <option value="another">Another</option>
-            </select>
-            <input class="another-input" name="included_items_another" type="text" placeholder="Enter another included-items value">
-          </label>
-
-          <label>
-            Socks status
-            <select name="socks_status">
-              <option value="unavailable">unavailable</option>
-              <option value="included">included</option>
-              <option value="not_applicable">not_applicable</option>
-              <option value="optional_add_on">optional_add_on</option>
-              <option value="another">Another</option>
-            </select>
-            <input class="another-input" name="socks_status_another" type="text" placeholder="Enter another socks status">
-          </label>
-
-          <label>
-            Listing configuration
-            <select name="listing_configuration">
-              <option value="plain_customisable">plain_customisable</option>
-              <option value="pre_applied_player">pre_applied_player</option>
-            </select>
-          </label>
-
-          <div id="playerFields" class="conditional-grid span-2">
-            <label>
-              Player name
-              <input name="pre_applied_name" type="text" placeholder="Messi">
-            </label>
-
-            <label>
-              Player number
-              <input name="pre_applied_number" type="text" placeholder="10">
-            </label>
+          <div class="span-2 product-selection-field">
+            <span class="field-label">Product selection</span>
+            <input name="audience" type="hidden">
+            <input name="product_type" type="hidden">
+            <input name="kit_type" type="hidden">
+            <input name="sleeve_length" type="hidden">
+            <input name="included_items" type="hidden">
+            <input name="socks_status" type="hidden">
+            <input name="listing_configuration" type="hidden">
+            <div class="product-item-controls">
+              <select id="productAudienceSelect" aria-label="Product audience">
+                <option value="kids">Kids</option>
+                <option value="adult">Adult</option>
+                <option value="women">Women</option>
+                <option value="baby">Baby</option>
+              </select>
+              <select id="productKindSelect" aria-label="Product kind">
+                <option value="Kit">Kit</option>
+                <option value="Shirt">Shirt</option>
+                <option value="Long Sleeve Shirt">Long Sleeve Shirt</option>
+                <option value="Suit">Suit</option>
+              </select>
+              <select id="productKitTypeSelect" aria-label="Product kit type">
+                <option value="home">Home</option>
+                <option value="away">Away</option>
+                <option value="third">Third</option>
+                <option value="goalkeeper">Goalkeeper</option>
+              </select>
+              <select id="productSocksSelect" aria-label="Product socks option">
+                <option value="unavailable">No Socks</option>
+                <option value="included">With Socks</option>
+              </select>
+              <select id="productPrintSelect" aria-label="Product print option">
+                <option value="plain_customisable">No Printed</option>
+                <option value="pre_applied_player">Printed</option>
+              </select>
+              <div id="productPrintFields" class="product-print-fields">
+                <input id="productPrintName" name="pre_applied_name" type="text" placeholder="Name, e.g. MESSI">
+                <input id="productPrintNumber" name="pre_applied_number" type="text" placeholder="Number, e.g. 10">
+              </div>
+            </div>
           </div>
-
-          <label class="span-2">
-            Verified design detail
-            <input name="verified_design_detail" type="text" placeholder="Optional: a verified visual detail, e.g. pink and black home colour layout">
-          </label>
 
         </form>
 
