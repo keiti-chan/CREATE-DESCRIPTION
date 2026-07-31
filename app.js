@@ -324,6 +324,15 @@ function shirtLabel(facts) {
   return "football";
 }
 
+function sleeveLengthLabel(facts) {
+  if (facts.sleeve_length === "long_sleeve") return "Long sleeve";
+  if (facts.sleeve_length === "short_sleeve") return "Short sleeve";
+  if (facts.sleeve_length && facts.sleeve_length !== "unknown") {
+    return sentenceStart(facts.sleeve_length.replaceAll("_", " ").toLowerCase());
+  }
+  return "Football sleeve";
+}
+
 function sentenceStart(value) {
   const text = String(value || "");
   return text ? text.charAt(0).toUpperCase() + text.slice(1) : "";
@@ -702,7 +711,10 @@ function renderDescription(facts, branch) {
   }
 
   const sizeLine = `<li><strong>Sizes:</strong> ${esc(facts.visible_size_range)}.${sizeGuideSentence(facts)}</li>`;
-  const kitLine = `<li><strong>Kit type:</strong> ${esc(titleCaseToken(facts.kit_type))} kit with a ${esc(shirtLabel(facts))} shirt.</li>`;
+  const kitLine = facts.product_type === "shirt_only"
+    ? `<li><strong>Kit type:</strong> ${esc(titleCaseToken(facts.kit_type))} shirt.</li>`
+    : `<li><strong>Kit type:</strong> ${esc(titleCaseToken(facts.kit_type))} kit.</li>`;
+  const sleeveLine = `<li><strong>Sleeve length:</strong> ${esc(sleeveLengthLabel(facts))}.</li>`;
   const configurationLine = interpolate(template.keyDetail, facts);
   const beforeOrder = template.beforeOrder.map((line) => interpolate(line, facts)).join("\n");
 
@@ -718,6 +730,7 @@ function renderDescription(facts, branch) {
     "<ul>",
     sizeLine,
     kitLine,
+    sleeveLine,
     configurationLine,
     "</ul>",
     "",
@@ -806,6 +819,14 @@ function auditDescription(html, facts, blockers, reviewFlags, resolvedBranch = n
   const tags = [...doc.querySelectorAll("#root *")].map((node) => node.tagName);
   const badTags = tags.filter((tag) => !allowedTags.has(tag));
   const text = doc.querySelector("#root").textContent.toLowerCase();
+  const sectionText = (headingText) => {
+    const heading = [...doc.querySelectorAll("#root h3")]
+      .find((node) => node.textContent.trim().toLowerCase() === headingText);
+    return heading?.nextElementSibling?.textContent.toLowerCase() || "";
+  };
+  const openingText = doc.querySelector("#root > p")?.textContent.toLowerCase() || "";
+  const includedText = sectionText("what's included");
+  const beforeOrderText = sectionText("before you order");
   const unsupported = forbiddenTerms.filter((term) => text.includes(term));
 
   if (badTags.length) {
@@ -816,8 +837,17 @@ function auditDescription(html, facts, blockers, reviewFlags, resolvedBranch = n
     blockers.push(`Description contains unsupported claim term(s): ${unsupported.join(", ")}.`);
   }
 
-  if (facts.socks_status === "unavailable" && !text.includes("socks are not included")) {
-    blockers.push("No-socks product must state that socks are not included.");
+  if (facts.socks_status === "unavailable") {
+    if (facts.site === "KFK") {
+      if (includedText.includes("socks")) {
+        blockers.push("KFK no-socks products must list only received items under What's Included.");
+      }
+      if (!openingText.includes("socks are not included") || !beforeOrderText.includes("socks are not included")) {
+        blockers.push("KFK no-socks products must state that socks are not included in the opening and Before You Order.");
+      }
+    } else if (!text.includes("socks are not included")) {
+      blockers.push("No-socks product must state that socks are not included.");
+    }
   }
 
   if (facts.product_type === "shirt_only" && !text.includes("shorts and socks are not included")) {
@@ -1037,6 +1067,7 @@ function setMode(mode) {
   activeMode = mode;
   form.classList.toggle("hidden", mode !== "product");
   bundleForm.classList.toggle("hidden", mode !== "bundle");
+  nextVariantBtn.classList.toggle("hidden", mode === "product");
   document.querySelectorAll(".mode-tab").forEach((button) => {
     button.classList.toggle("active", button.dataset.mode === mode);
   });
@@ -1113,6 +1144,7 @@ bundleItemAnother.addEventListener("keydown", (event) => {
 
 loadSample();
 syncProductTypeDefaults();
+nextVariantBtn.classList.add("hidden");
 syncAnotherInputs();
 syncBundleItemControls();
 renderBundleItemsList();
