@@ -114,12 +114,13 @@
     const includedKitItems = withSocks
       ? "a {sleeve_label} shirt, matching shorts and matching socks"
       : "a {sleeve_label} shirt and matching shorts";
+    const noSocksNote = withSocks ? "" : " Socks are not included.";
     const openings = [
-      "{product_name} is supplied with " + includedKitItems + ".",
-      "This {team} {season} " + copy.label + " {kit_type_label} kit includes " + includedKitItems + ".",
-      "{product_name} brings together " + includedKitItems + ".",
-      "The {team} {season} " + copy.label + " {kit_type_label} kit is supplied with " + includedKitItems + ".",
-      "This " + copy.label + " {kit_type_label} kit for {team} includes " + includedKitItems + "."
+      "{product_name} is supplied with " + includedKitItems + "." + noSocksNote,
+      "This {team} {season} " + copy.label + " {kit_type_label} kit includes " + includedKitItems + "." + noSocksNote,
+      "{product_name} brings together " + includedKitItems + "." + noSocksNote,
+      "The {team} {season} " + copy.label + " {kit_type_label} kit is supplied with " + includedKitItems + "." + noSocksNote,
+      "This " + copy.label + " {kit_type_label} kit for {team} includes " + includedKitItems + "." + noSocksNote
     ];
 
     return branch(createVariants(openings, customPersonalisation, customPersonalisation.map((_, index) => fullKitBeforeOrder(withSocks, index))));
@@ -127,12 +128,13 @@
 
   function playerFullKit(audience, withSocks) {
     const copy = audienceCopy(audience);
+    const noSocksNote = withSocks ? "" : " Socks are not included.";
     const openings = [
-      "{product_name} is supplied with {player_name} {player_number} already applied to the shirt.",
-      "This {team} {season} " + copy.label + " {kit_type_label} kit is supplied with {player_name} {player_number} already applied to the shirt.",
-      "{product_name} comes with {player_name} {player_number} already applied to the shirt.",
-      "The {team} {season} " + copy.label + " {kit_type_label} kit includes {player_name} {player_number} already applied to the shirt.",
-      "This " + copy.label + " {kit_type_label} kit for {team} is supplied as the fixed {player_name} {player_number} version."
+      "{product_name} is supplied with {player_name} {player_number} already applied to the shirt." + noSocksNote,
+      "This {team} {season} " + copy.label + " {kit_type_label} kit is supplied with {player_name} {player_number} already applied to the shirt." + noSocksNote,
+      "{product_name} comes with {player_name} {player_number} already applied to the shirt." + noSocksNote,
+      "The {team} {season} " + copy.label + " {kit_type_label} kit includes {player_name} {player_number} already applied to the shirt." + noSocksNote,
+      "This " + copy.label + " {kit_type_label} kit for {team} is supplied as the fixed {player_name} {player_number} version." + noSocksNote
     ];
 
     return branch(createVariants(openings, playerPrint, playerPrint.map((_, index) => playerFullKitBeforeOrder(withSocks, index))));
@@ -140,12 +142,13 @@
 
   function customShirtOnly(audience) {
     const copy = audienceCopy(audience);
+    const shirtOnlyNote = " Shorts and socks are not included.";
     const openings = [
-      "{product_name} is supplied as a {sleeve_label} {product_item_label}.",
-      "This {team} {season} " + copy.label + " {kit_type_label} {product_item_label} is supplied as a standalone item.",
-      "{product_name} is offered as a standalone {product_item_label}.",
-      "The {team} {season} " + copy.label + " {kit_type_label} {product_item_label} is supplied as a single item.",
-      "This " + copy.label + " {kit_type_label} {product_item_label} for {team} is available on its own."
+      "{product_name} is supplied as a {sleeve_label} {product_item_label}." + shirtOnlyNote,
+      "This {team} {season} " + copy.label + " {kit_type_label} {product_item_label} is supplied as a standalone item." + shirtOnlyNote,
+      "{product_name} is offered as a standalone {product_item_label}." + shirtOnlyNote,
+      "The {team} {season} " + copy.label + " {kit_type_label} {product_item_label} is supplied as a single item." + shirtOnlyNote,
+      "This " + copy.label + " {kit_type_label} {product_item_label} for {team} is available on its own." + shirtOnlyNote
     ];
 
     return branch(createVariants(openings, customPersonalisation, customPersonalisation.map((_, index) => shirtOnlyBeforeOrder(index))));
@@ -153,12 +156,13 @@
 
   function playerShirtOnly(audience) {
     const copy = audienceCopy(audience);
+    const shirtOnlyNote = " Shorts and socks are not included.";
     const openings = [
-      "{product_name} is supplied with {player_name} {player_number} already applied to the back.",
-      "This {team} {season} " + copy.label + " {kit_type_label} {product_item_label} is supplied with {player_name} {player_number} already applied to the back.",
-      "{product_name} is the {player_name} {player_number} version, with the print already applied to the back.",
-      "The {team} {season} " + copy.label + " {kit_type_label} {product_item_label} comes with {player_name} {player_number} already applied to the back.",
-      "This " + copy.label + " {kit_type_label} {product_item_label} for {team} is supplied as the fixed {player_name} {player_number} version."
+      "{product_name} is supplied with {player_name} {player_number} already applied to the back." + shirtOnlyNote,
+      "This {team} {season} " + copy.label + " {kit_type_label} {product_item_label} is supplied with {player_name} {player_number} already applied to the back." + shirtOnlyNote,
+      "{product_name} is the {player_name} {player_number} version, with the print already applied to the back." + shirtOnlyNote,
+      "The {team} {season} " + copy.label + " {kit_type_label} {product_item_label} comes with {player_name} {player_number} already applied to the back." + shirtOnlyNote,
+      "This " + copy.label + " {kit_type_label} {product_item_label} for {team} is supplied as the fixed {player_name} {player_number} version." + shirtOnlyNote
     ];
 
     return branch(createVariants(openings, playerPrint, playerPrint.map((_, index) => playerShirtOnlyBeforeOrder(index))));

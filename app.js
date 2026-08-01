@@ -903,6 +903,14 @@ function auditDescription(html, facts, blockers, reviewFlags, resolvedBranch = n
   const tags = [...doc.querySelectorAll("#root *")].map((node) => node.tagName);
   const badTags = tags.filter((tag) => !allowedTags.has(tag));
   const text = doc.querySelector("#root").textContent.toLowerCase();
+  const sectionText = (headingText) => {
+    const heading = [...doc.querySelectorAll("#root h3")]
+      .find((node) => node.textContent.trim().toLowerCase() === headingText);
+    return heading?.nextElementSibling?.textContent.toLowerCase() || "";
+  };
+  const openingText = doc.querySelector("#root > p")?.textContent.toLowerCase() || "";
+  const includedText = sectionText("what's included");
+  const beforeOrderText = sectionText("before you order");
   const unsupported = forbiddenTerms.filter((term) => text.includes(term));
 
   if (badTags.length) {
@@ -913,8 +921,17 @@ function auditDescription(html, facts, blockers, reviewFlags, resolvedBranch = n
     blockers.push(`Description contains unsupported claim term(s): ${unsupported.join(", ")}.`);
   }
 
-  if (facts.socks_status === "unavailable" && !text.includes("socks are not included")) {
-    blockers.push("No-socks product must state that socks are not included.");
+  if (facts.socks_status === "unavailable") {
+    if (facts.site === "KFK") {
+      if (includedText.includes("socks")) {
+        blockers.push("KFK no-socks products must list only received items under What's Included.");
+      }
+      if (!openingText.includes("socks are not included") || !beforeOrderText.includes("socks are not included")) {
+        blockers.push("KFK no-socks products must state that socks are not included in the opening and Before You Order.");
+      }
+    } else if (!text.includes("socks are not included")) {
+      blockers.push("No-socks product must state that socks are not included.");
+    }
   }
 
   if (facts.product_type === "shirt_only" && !text.includes("shorts and socks are not included")) {
