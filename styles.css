@@ -297,6 +297,10 @@ textarea:focus {
   grid-column: 1 / -1;
 }
 
+.product-item-controls .another-input.visible {
+  grid-column: 1 / -1;
+}
+
 .bundle-print-fields,
 .product-print-fields {
   display: none;

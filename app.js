@@ -9,9 +9,11 @@ const qaBadge = document.querySelector("#qaBadge");
 const preview = document.querySelector("#descriptionPreview");
 const htmlOutput = document.querySelector("#htmlOutput");
 const auditOutput = document.querySelector("#auditOutput");
+const productNameInput = form.elements.product_name;
 const productAudienceSelect = document.querySelector("#productAudienceSelect");
 const productKindSelect = document.querySelector("#productKindSelect");
 const productKitTypeSelect = document.querySelector("#productKitTypeSelect");
+const productOtherKitType = document.querySelector("#productOtherKitType");
 const productSocksSelect = document.querySelector("#productSocksSelect");
 const productPrintSelect = document.querySelector("#productPrintSelect");
 const productPrintFields = document.querySelector("#productPrintFields");
@@ -92,11 +94,78 @@ function getFacts() {
   return facts;
 }
 
+function hasStandaloneKeyword(value, keyword) {
+  const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^|[^a-z0-9])${escapedKeyword}($|[^a-z0-9])`, "i").test(value);
+}
+
+function selectProductKitType(value) {
+  const hasOption = [...productKitTypeSelect.options].some((option) => option.value === value);
+  if (hasOption) productKitTypeSelect.value = value;
+}
+
+function inferProductSelectionFromName() {
+  const productName = productNameInput.value.trim();
+  if (!productName) return;
+
+  const seasonMatch = productName.match(/\b20\d{2}\/\d{2}\b/);
+  if (seasonMatch) form.elements.season.value = seasonMatch[0];
+
+  const audienceMatch = [
+    ["baby", "baby"],
+    ["women", "women"],
+    ["kids", "kids"],
+    ["kid", "kids"],
+    ["adult", "adult"],
+    ["men", "adult"]
+  ].find(([keyword]) => hasStandaloneKeyword(productName, keyword));
+  if (audienceMatch) productAudienceSelect.value = audienceMatch[1];
+
+  const kitTypeMatch = [
+    ["special edition", "special_edition"],
+    ["pre match", "pre_match"],
+    ["pre-match", "pre_match"],
+    ["goalkeeper", "goalkeeper"],
+    ["training", "training"],
+    ["fourth", "fourth"],
+    ["fifth", "fifth"],
+    ["third", "third"],
+    ["away", "away"],
+    ["home", "home"],
+    ["retro", "retro"]
+  ].find(([keyword]) => hasStandaloneKeyword(productName, keyword));
+  if (kitTypeMatch) selectProductKitType(kitTypeMatch[1]);
+
+  const hasLongSleeve = hasStandaloneKeyword(productName, "long sleeve") || hasStandaloneKeyword(productName, "long-sleeve");
+  const hasKit = hasStandaloneKeyword(productName, "football kit") || hasStandaloneKeyword(productName, "kit");
+  const hasShirt = hasStandaloneKeyword(productName, "football shirt") || hasStandaloneKeyword(productName, "shirt");
+  const hasSuit = hasStandaloneKeyword(productName, "suit");
+
+  if (hasSuit) productKindSelect.value = "Suit";
+  else if (hasLongSleeve && hasKit) productKindSelect.value = "Long Sleeve Kit";
+  else if (hasLongSleeve && hasShirt) productKindSelect.value = "Long Sleeve Shirt";
+  else if (hasKit) productKindSelect.value = "Kit";
+  else if (hasShirt) productKindSelect.value = "Shirt";
+
+  if (hasStandaloneKeyword(productName, "with socks")) productSocksSelect.value = "included";
+  if (hasStandaloneKeyword(productName, "no socks") || hasStandaloneKeyword(productName, "without socks")) productSocksSelect.value = "unavailable";
+
+  const playerPrintMatch = productName.match(/(?:^|[^a-z])([A-Z]{2,})\s+(\d{1,2})(?=$|[^a-z0-9])/);
+  if (playerPrintMatch) {
+    productPrintSelect.value = "pre_applied_player";
+    productPrintName.value = playerPrintMatch[1];
+    productPrintNumber.value = playerPrintMatch[2];
+  }
+
+  syncProductSelectionFields();
+}
+
 function syncProductSelectionFields() {
-  let isKit = productKindSelect.value === "Kit";
-  let isLongSleeve = productKindSelect.value === "Long Sleeve Shirt";
+  let isKit = productKindSelect.value === "Kit" || productKindSelect.value === "Long Sleeve Kit";
+  let isLongSleeve = productKindSelect.value === "Long Sleeve Shirt" || productKindSelect.value === "Long Sleeve Kit";
   let isSuit = productKindSelect.value === "Suit";
   const isPrinted = productPrintSelect.value === "pre_applied_player";
+  const usesOtherKitType = productKitTypeSelect.value === "other";
 
   if (productAudienceSelect.value === "baby" && !isSuit) {
     productKindSelect.value = "Suit";
@@ -111,7 +180,7 @@ function syncProductSelectionFields() {
 
   form.elements.audience.value = productAudienceSelect.value;
   form.elements.product_type.value = isKit ? "full_kit" : "shirt_only";
-  form.elements.kit_type.value = productKitTypeSelect.value;
+  form.elements.kit_type.value = usesOtherKitType ? productOtherKitType.value.trim() || "unknown" : productKitTypeSelect.value;
   form.elements.sleeve_length.value = isSuit ? "baby_suit" : isLongSleeve ? "long_sleeve" : "short_sleeve";
   form.elements.listing_configuration.value = productPrintSelect.value;
 
@@ -124,6 +193,8 @@ function syncProductSelectionFields() {
   }
 
   productSocksSelect.classList.toggle("hidden", !isKit);
+  productOtherKitType.classList.toggle("visible", usesOtherKitType);
+  productOtherKitType.required = usesOtherKitType;
   productPrintFields.classList.toggle("visible", isPrinted);
   productPrintName.required = isPrinted;
   productPrintNumber.required = isPrinted;
@@ -136,8 +207,10 @@ function syncProductSelectionFields() {
 
 function syncProductControlsFromFacts(facts) {
   productAudienceSelect.value = facts.audience || "kids";
-  productKindSelect.value = facts.product_type === "full_kit" ? "Kit" : facts.sleeve_length === "baby_suit" ? "Suit" : facts.sleeve_length === "long_sleeve" ? "Long Sleeve Shirt" : "Shirt";
-  productKitTypeSelect.value = facts.kit_type || "home";
+  productKindSelect.value = facts.product_type === "full_kit" ? facts.sleeve_length === "long_sleeve" ? "Long Sleeve Kit" : "Kit" : facts.sleeve_length === "baby_suit" ? "Suit" : facts.sleeve_length === "long_sleeve" ? "Long Sleeve Shirt" : "Shirt";
+  const supportedKitType = [...productKitTypeSelect.options].some((option) => option.value === facts.kit_type);
+  productKitTypeSelect.value = supportedKitType ? facts.kit_type : "other";
+  productOtherKitType.value = supportedKitType ? "" : facts.kit_type || "";
   productSocksSelect.value = facts.socks_status === "included" ? "included" : "unavailable";
   productPrintSelect.value = facts.listing_configuration || "plain_customisable";
   productPrintName.value = facts.pre_applied_name || "";
@@ -1185,6 +1258,16 @@ generateBtn.addEventListener("click", () => scheduleGenerate({ advanceVariant: t
 loadSampleBtn.addEventListener("click", loadSample);
 nextVariantBtn.addEventListener("click", () => {
   scheduleGenerate({ advanceVariant: true });
+});
+productNameInput.addEventListener("input", () => {
+  inferProductSelectionFromName();
+  variantOffset = 0;
+  scheduleGenerate();
+});
+productOtherKitType.addEventListener("input", () => {
+  syncProductSelectionFields();
+  variantOffset = 0;
+  scheduleGenerate();
 });
 [
   productAudienceSelect,
