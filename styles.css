@@ -206,6 +206,10 @@ label {
   font-weight: 700;
 }
 
+label.disabled {
+  opacity: 0.55;
+}
+
 .field-label {
   display: block;
   color: var(--muted);
@@ -274,6 +278,11 @@ select:focus,
 textarea:focus {
   border-color: var(--accent);
   outline: 3px solid rgba(15, 118, 110, 0.16);
+}
+
+input:disabled {
+  cursor: not-allowed;
+  background: var(--surface);
 }
 
 .bundle-items-field,
@@ -509,19 +518,3 @@ textarea:focus {
 
   .bundle-item-controls .another-input.visible {
     grid-column: 1;
-  }
-
-  .bundle-print-fields,
-  .product-print-fields {
-    grid-column: 1;
-    grid-template-columns: 1fr;
-  }
-
-  .product-item-controls {
-    grid-template-columns: 1fr;
-  }
-
-  .product-item-controls > :nth-child(-n + 5) {
-    grid-column: 1;
-  }
-}
