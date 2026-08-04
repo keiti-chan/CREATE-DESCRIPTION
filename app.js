@@ -12,11 +12,14 @@ const auditOutput = document.querySelector("#auditOutput");
 const productNameInput = form.elements.product_name;
 const mainColourShirtInput = form.elements.main_colour_shirt;
 const mainColourShortsInput = form.elements.main_colour_shorts;
+const mainColourSocksInput = form.elements.main_colour_socks;
 const badgeStatusSelect = form.elements.badge_status;
 const badgeLeagueField = document.querySelector("#badgeLeagueField");
 const badgeLeagueInput = form.elements.badge_league;
 const mainColourShortsField = document.querySelector("#mainColourShortsField");
+const mainColourSocksField = document.querySelector("#mainColourSocksField");
 const productAudienceSelect = document.querySelector("#productAudienceSelect");
+const adultAudienceOption = productAudienceSelect.querySelector('option[value="adult"]');
 const productKindSelect = document.querySelector("#productKindSelect");
 const productKitTypeSelect = document.querySelector("#productKitTypeSelect");
 const productOtherKitType = document.querySelector("#productOtherKitType");
@@ -146,11 +149,17 @@ function inferProductSelectionFromName() {
 
   const audienceMatch = [
     ["baby", "baby"],
+    ["women's", "women"],
+    ["womens", "women"],
     ["women", "women"],
+    ["men's", "men"],
+    ["mens", "men"],
+    ["men", "men"],
+    ["male", "men"],
+    ["man", "men"],
     ["kids", "kids"],
     ["kid", "kids"],
-    ["adult", "adult"],
-    ["men", "adult"]
+    ["adult", "adult"]
   ].find(([keyword]) => hasStandaloneKeyword(productName, keyword));
   if (audienceMatch) productAudienceSelect.value = audienceMatch[1];
 
@@ -217,6 +226,9 @@ function syncProductSelectionFields() {
     productAudienceSelect.value = "baby";
   }
 
+  adultAudienceOption.disabled = !isKit;
+  adultAudienceOption.textContent = isKit ? "Adult" : "Adult (kits only)";
+
   form.elements.audience.value = productAudienceSelect.value;
   form.elements.product_type.value = isKit ? "full_kit" : "shirt_only";
   form.elements.kit_type.value = usesOtherKitType ? productOtherKitType.value.trim() || "unknown" : productKitTypeSelect.value;
@@ -249,6 +261,12 @@ function syncProductSelectionFields() {
   mainColourShortsField.title = usesShortsColour ? "" : "Shorts colour applies to kits only.";
   if (!usesShortsColour) mainColourShortsInput.value = "";
 
+  const usesSocksColour = isKit && productSocksSelect.value === "included";
+  mainColourSocksInput.disabled = !usesSocksColour;
+  mainColourSocksField.classList.toggle("disabled", !usesSocksColour);
+  mainColourSocksField.title = usesSocksColour ? "" : "Socks colour applies to kits with socks only.";
+  if (!usesSocksColour) mainColourSocksInput.value = "";
+
   syncBadgeField();
 }
 
@@ -271,6 +289,7 @@ function syncProductControlsFromFacts(facts) {
   productPrintNumber.value = facts.pre_applied_number || "";
   mainColourShirtInput.value = facts.main_colour_shirt || "";
   mainColourShortsInput.value = facts.main_colour_shorts || "";
+  mainColourSocksInput.value = facts.main_colour_socks || "";
   badgeStatusSelect.value = facts.badge_status === "available" ? "available" : "unavailable";
   badgeLeagueInput.value = facts.badge_league || "";
   syncProductSelectionFields();
@@ -311,6 +330,12 @@ function applyDerivedSizeFacts(facts) {
 
   if (facts.audience === "adult") {
     facts.visible_size_range = "Adult sizes S-XXL";
+    facts.size_profile = "adult_s_2xl";
+    return;
+  }
+
+  if (facts.audience === "men") {
+    facts.visible_size_range = "Men sizes S-XXL";
     facts.size_profile = "adult_s_2xl";
     return;
   }
@@ -454,7 +479,8 @@ function usesBundleSocks() {
 
 function normaliseAudience(facts) {
   const value = String(facts.audience || "").trim().toLowerCase();
-  const adultAliases = new Set(["adult", "men", "mens", "men's", "man", "male"]);
+  const menAliases = new Set(["men", "mens", "men's", "man", "male"]);
+  const adultAliases = new Set(["adult", "adults"]);
   const womenAliases = new Set(["women", "womens", "women's", "woman", "female", "ladies"]);
   const babyAliases = new Set(["baby", "infant", "toddler"]);
   const kidsAliases = new Set(["kids", "kid", "children", "child", "youth", "junior", "boys", "girls"]);
@@ -466,6 +492,11 @@ function normaliseAudience(facts) {
 
   if (babyAliases.has(value)) {
     facts.audience = "baby";
+    return;
+  }
+
+  if (menAliases.has(value)) {
+    facts.audience = "men";
     return;
   }
 
@@ -581,6 +612,7 @@ function titleCasePhrase(value) {
 function openingAudienceLabel(value) {
   const labels = {
     kids: "Kids",
+    men: "Men",
     adult: "Adult",
     women: "Women",
     baby: "Baby"
@@ -612,6 +644,7 @@ function interpolate(template, facts, { titleCaseProductLabels = false } = {}) {
 
 function audienceLabel(value) {
   if (value === "kids") return "kids";
+  if (value === "men") return "men";
   if (value === "adult") return "adult buyers";
   if (value === "women") return "women";
   if (value === "baby") return "babies";
@@ -733,7 +766,7 @@ function detectBranch(facts) {
     return `${facts.listing_configuration}_${facts.audience}_shirt_only`;
   }
 
-  if (facts.product_type === "full_kit" && ["kids", "adult", "women", "baby"].includes(facts.audience)) {
+  if (facts.product_type === "full_kit" && ["kids", "men", "adult", "women", "baby"].includes(facts.audience)) {
     if (facts.included_items === "shirt_and_shorts" && facts.socks_status === "unavailable") {
       if (facts.listing_configuration === "plain_customisable") {
         return `plain_customisable_${facts.audience}_full_kit_without_socks`;
@@ -849,6 +882,9 @@ function validateFacts(facts, branch) {
     if (facts.socks_status !== "not_applicable") {
       blockers.push("Shirt-only products must use socks_status not_applicable.");
     }
+    if (facts.audience === "adult") {
+      blockers.push("Adult is reserved for generic adult kits. Choose Men or Women for a shirt-only product.");
+    }
   }
 
   if (facts.audience === "kids" && facts.size_profile !== "kids_16_28") {
@@ -857,6 +893,10 @@ function validateFacts(facts, branch) {
 
   if (facts.audience === "adult" && facts.size_profile !== "adult_s_2xl") {
     blockers.push("Adult listings must use size_profile adult_s_2xl.");
+  }
+
+  if (facts.audience === "men" && facts.size_profile !== "adult_s_2xl") {
+    blockers.push("Men listings must use size_profile adult_s_2xl.");
   }
 
   if (facts.audience === "women" && facts.size_profile !== "women_s_2xl") {
@@ -871,8 +911,8 @@ function validateFacts(facts, branch) {
     blockers.push("visible_size_range must match Kids sizes 16-28 for size_profile kids_16_28.");
   }
 
-  if (facts.size_profile === "adult_s_2xl" && !facts.visible_size_range.toLowerCase().includes("adult sizes s-xxl")) {
-    blockers.push("visible_size_range must match Adult sizes S-XXL for size_profile adult_s_2xl.");
+  if (facts.size_profile === "adult_s_2xl" && !["adult sizes s-xxl", "men sizes s-xxl"].some((label) => facts.visible_size_range.toLowerCase().includes(label))) {
+    blockers.push("visible_size_range must match Adult sizes S-XXL or Men sizes S-XXL for size_profile adult_s_2xl.");
   }
 
   if (facts.size_profile === "women_s_2xl" && !facts.visible_size_range.toLowerCase().includes("women sizes s–2xl")) {
@@ -923,6 +963,10 @@ function validateFacts(facts, branch) {
     reviewFlags.push("source_notes is blank; add the human validation/evidence note before approval.");
   }
 
+  if (facts.product_type === "full_kit" && facts.socks_status === "included" && !String(facts.main_colour_socks || "").trim()) {
+    reviewFlags.push("Socks are included but the socks colour is blank; confirm it or leave it omitted if it cannot be verified.");
+  }
+
   return { blockers, reviewFlags };
 }
 
@@ -965,9 +1009,13 @@ function mainColoursLine(facts) {
   const shortsColour = facts.product_type === "full_kit"
     ? String(facts.main_colour_shorts || "").trim()
     : "";
+  const socksColour = facts.product_type === "full_kit" && facts.socks_status === "included"
+    ? String(facts.main_colour_socks || "").trim()
+    : "";
 
   if (shirtColour) colours.push(`${sentenceStart(shirtColour)} shirt`);
   if (shortsColour) colours.push(`${sentenceStart(shortsColour)} shorts`);
+  if (socksColour) colours.push(`${sentenceStart(socksColour)} socks`);
   if (!colours.length) return "";
 
   return `<li><strong>Main colours:</strong> ${esc(colours.join("; "))}. Exact shades may vary slightly between screens and production batches. Please use the product photos as your guide.</li>`;
@@ -1342,6 +1390,7 @@ function loadSample() {
     season: "2026/27",
     main_colour_shirt: "Pink",
     main_colour_shorts: "Black",
+    main_colour_socks: "",
     badge_status: "unavailable",
     badge_league: "",
     audience: "kids",
@@ -1443,7 +1492,7 @@ productNameInput.addEventListener("input", () => {
   variantOffset = 0;
   scheduleGenerate();
 });
-[mainColourShirtInput, mainColourShortsInput, badgeLeagueInput].forEach((field) => {
+[mainColourShirtInput, mainColourShortsInput, mainColourSocksInput, badgeLeagueInput].forEach((field) => {
   field.addEventListener("input", () => {
     variantOffset = 0;
     scheduleGenerate();
