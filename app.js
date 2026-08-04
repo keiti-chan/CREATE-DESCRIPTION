@@ -13,6 +13,8 @@ const productNameInput = form.elements.product_name;
 const mainColourShirtInput = form.elements.main_colour_shirt;
 const mainColourShortsInput = form.elements.main_colour_shorts;
 const badgeStatusSelect = form.elements.badge_status;
+const badgeLeagueField = document.querySelector("#badgeLeagueField");
+const badgeLeagueInput = form.elements.badge_league;
 const productAudienceSelect = document.querySelector("#productAudienceSelect");
 const productKindSelect = document.querySelector("#productKindSelect");
 const productKitTypeSelect = document.querySelector("#productKitTypeSelect");
@@ -86,6 +88,7 @@ function getFacts() {
 
   Object.assign(facts, fixedKfkFacts);
   facts.badge_status = facts.badge_status === "available" ? "available" : "unavailable";
+  facts.badge_league = facts.badge_status === "available" ? String(facts.badge_league || "").trim() : "";
 
   applyAnotherValue(facts, "kit_type");
   applyAnotherValue(facts, "sleeve_length");
@@ -238,6 +241,15 @@ function syncProductSelectionFields() {
     productPrintName.value = "";
     productPrintNumber.value = "";
   }
+
+  syncBadgeField();
+}
+
+function syncBadgeField() {
+  const isAvailable = badgeStatusSelect.value === "available";
+  badgeLeagueField.classList.toggle("hidden", !isAvailable);
+  badgeLeagueInput.required = isAvailable;
+  if (!isAvailable) badgeLeagueInput.value = "";
 }
 
 function syncProductControlsFromFacts(facts) {
@@ -253,6 +265,7 @@ function syncProductControlsFromFacts(facts) {
   mainColourShirtInput.value = facts.main_colour_shirt || "";
   mainColourShortsInput.value = facts.main_colour_shorts || "";
   badgeStatusSelect.value = facts.badge_status === "available" ? "available" : "unavailable";
+  badgeLeagueInput.value = facts.badge_league || "";
   syncProductSelectionFields();
 }
 
@@ -785,6 +798,10 @@ function validateFacts(facts, branch) {
     blockers.push("badge_status must be available or unavailable.");
   }
 
+  if (facts.badge_status === "available" && !facts.badge_league) {
+    blockers.push("badge_league is required when badge_status is available.");
+  }
+
   if (facts.version_style !== "fan_version") {
     blockers.push("KFK products must use the fixed fan version.");
   }
@@ -960,7 +977,7 @@ function badgeLine(facts) {
   if (facts.badge_status !== "available") return "";
 
   const price = Number(facts.badge_price_gbp || fixedKfkFacts.badge_price_gbp).toFixed(2);
-  return `<li><strong>Sleeve badge:</strong> An optional Premier League sleeve badge can be added for &pound;${price}. Select it in the product options if required. It is not included in the base kit.</li>`;
+  return `<li><strong>Sleeve badge:</strong> An optional ${esc(facts.badge_league)} sleeve badge can be added for &pound;${price}. Select it in the product options if required. It is not included in the base kit.</li>`;
 }
 
 function sizingWarningLine(facts) {
@@ -1132,10 +1149,10 @@ function auditDescription(html, facts, blockers, reviewFlags, resolvedBranch = n
     if (!text.includes("material: polyester")) {
       blockers.push("Product descriptions must identify the fixed polyester material.");
     }
-    if (facts.badge_status === "available" && (!text.includes("premier league sleeve badge") || !text.includes("3.99"))) {
-      blockers.push("Available badge products must show the Premier League badge option and £3.99 price.");
+    if (facts.badge_status === "available" && (!facts.badge_league || !text.includes(facts.badge_league.toLowerCase()) || !text.includes("sleeve badge") || !text.includes("3.99"))) {
+      blockers.push("Available badge products must show the entered league badge option and £3.99 price.");
     }
-    if (facts.badge_status === "unavailable" && text.includes("premier league sleeve badge")) {
+    if (facts.badge_status === "unavailable" && text.includes("sleeve badge")) {
       blockers.push("Unavailable badge products must not show the badge option.");
     }
   }
@@ -1314,6 +1331,7 @@ function loadSample() {
     main_colour_shirt: "Pink",
     main_colour_shorts: "Black",
     badge_status: "unavailable",
+    badge_league: "",
     audience: "kids",
     product_type: "full_kit",
     kit_type: "home",
@@ -1413,7 +1431,7 @@ productNameInput.addEventListener("input", () => {
   variantOffset = 0;
   scheduleGenerate();
 });
-[mainColourShirtInput, mainColourShortsInput].forEach((field) => {
+[mainColourShirtInput, mainColourShortsInput, badgeLeagueInput].forEach((field) => {
   field.addEventListener("input", () => {
     variantOffset = 0;
     scheduleGenerate();
