@@ -1898,3 +1898,49 @@ productOtherKitType.addEventListener("input", () => {
   field.addEventListener("input", () => {
     isPrintInferredFromProductName = false;
   });
+});
+[
+  productAudienceSelect,
+  productKindSelect,
+  productKitTypeSelect,
+  productSocksSelect,
+  productPrintSelect,
+  badgeStatusSelect
+].forEach((field) => {
+  field.addEventListener("change", () => {
+    if (field === productPrintSelect) isPrintInferredFromProductName = false;
+    syncProductSelectionFields();
+    markImageColoursForReview();
+    variantOffset = 0;
+    scheduleGenerate();
+  });
+});
+form.querySelectorAll("select").forEach((select) => {
+  select.addEventListener("change", () => {
+    syncProductTypeDefaults();
+    syncAnotherInputs();
+  });
+});
+copyBtn.addEventListener("click", async () => {
+  if (!htmlOutput.value) return;
+  await navigator.clipboard.writeText(htmlOutput.value);
+  copyBtn.textContent = "Copied";
+  window.setTimeout(() => {
+    copyBtn.textContent = "Copy HTML";
+  }, 1200);
+});
+bundleProductSelect.addEventListener("change", syncBundleItemControls);
+bundlePrintSelect.addEventListener("change", syncBundleItemControls);
+bundlePrintSelect.addEventListener("input", syncBundleItemControls);
+addBundleItemBtn.addEventListener("click", addSelectedBundleItem);
+bundleItemAnother.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter") return;
+  event.preventDefault();
+  addSelectedBundleItem();
+});
+
+loadSample();
+syncProductTypeDefaults();
+syncAnotherInputs();
+syncBundleItemControls();
+renderBundleItemsList();
