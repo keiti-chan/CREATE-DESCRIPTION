@@ -33,6 +33,8 @@ const addBundleItemBtn = document.querySelector("#addBundleItemBtn");
 const bundleItemsSummaryEl = document.querySelector("#bundleItemsSummary");
 const bundleItemsList = document.querySelector("#bundleItemsList");
 const templateLibrary = window.DESCRIPTION_TEMPLATE_LIBRARY;
+const nationalTeams = window.NATIONAL_TEAMS || [];
+const footballClubs = window.FOOTBALL_CLUBS || [];
 
 let variantOffset = 0;
 let generateTimer = null;
@@ -104,12 +106,24 @@ function selectProductKitType(value) {
   if (hasOption) productKitTypeSelect.value = value;
 }
 
+function findFootballTeam(productName) {
+  const matches = [...nationalTeams, ...footballClubs].flatMap((team) => team.aliases
+    .filter((alias) => hasStandaloneKeyword(productName, alias))
+    .map((alias) => ({ name: team.name, alias })));
+
+  matches.sort((left, right) => right.alias.length - left.alias.length);
+  return matches[0] || null;
+}
+
 function inferProductSelectionFromName() {
   const productName = productNameInput.value.trim();
   if (!productName) return;
 
   const seasonMatch = productName.match(/\b20\d{2}\/\d{2}\b/);
   if (seasonMatch) form.elements.season.value = seasonMatch[0];
+
+  const matchedTeam = findFootballTeam(productName);
+  if (matchedTeam) form.elements.team.value = matchedTeam.name;
 
   const audienceMatch = [
     ["baby", "baby"],
