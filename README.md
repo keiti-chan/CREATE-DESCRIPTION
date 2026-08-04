@@ -18,10 +18,12 @@ There is nothing to install. Open [`index.html`](./index.html) in a browser.
    league-specific sleeve-badge price when a badge option is available.
 4. Select the sleeve-badge availability and enter the badge league when it is
    available.
-5. Add a verified design detail only when the image or approved record supports
+5. For shirt-only products, the shorts-colour field is disabled and omitted
+   from the description.
+6. Add a verified design detail only when the image or approved record supports
    it. Leave it blank when unsure.
-6. Select **Generate**.
-7. Check the Preview, HTML and Audit tabs before copying the HTML into a
+7. Select **Generate**.
+8. Check the Preview, HTML and Audit tabs before copying the HTML into a
    human-review workflow.
 
 The **Load sample** button is for testing the builder only. Do not use sample
