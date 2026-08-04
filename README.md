@@ -15,8 +15,9 @@ There is nothing to install. Open [`index.html`](./index.html) in a browser.
 2. Enter only confirmed facts: product identity, contents, socks status, sizes,
    main colours and the correct print configuration.
 3. Fixed KFK facts are pre-applied: Fan version, Polyester and a £3.99
-   Premier League sleeve-badge price when the badge option is available.
-4. Select the sleeve-badge availability for the listing.
+   league-specific sleeve-badge price when a badge option is available.
+4. Select the sleeve-badge availability and enter the badge league when it is
+   available.
 5. Add a verified design detail only when the image or approved record supports
    it. Leave it blank when unsure.
 6. Select **Generate**.
@@ -34,7 +35,7 @@ facts as evidence for a real product.
 - visible size range and Size Guide wording;
 - required player name and number for fixed-print products;
 - fixed KFK facts and approved material wording;
-- main-colour and sleeve-badge details; and
+- main-colour and sleeve-badge details, including the league when available; and
 - unsupported claims and unsafe HTML.
 
 For KFK no-socks products, **What’s Included** lists only the shirt and
