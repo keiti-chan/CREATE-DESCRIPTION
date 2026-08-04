@@ -10,6 +10,9 @@ const preview = document.querySelector("#descriptionPreview");
 const htmlOutput = document.querySelector("#htmlOutput");
 const auditOutput = document.querySelector("#auditOutput");
 const productNameInput = form.elements.product_name;
+const mainColourShirtInput = form.elements.main_colour_shirt;
+const mainColourShortsInput = form.elements.main_colour_shorts;
+const badgeStatusSelect = form.elements.badge_status;
 const productAudienceSelect = document.querySelector("#productAudienceSelect");
 const productKindSelect = document.querySelector("#productKindSelect");
 const productKitTypeSelect = document.querySelector("#productKitTypeSelect");
@@ -42,8 +45,15 @@ let activeMode = "product";
 let bundleItems = [];
 let isPrintInferredFromProductName = false;
 
+const fixedKfkFacts = Object.freeze({
+  version_style: "fan_version",
+  material: "polyester",
+  badge_price_gbp: 3.99
+});
+
 const defaultFacts = {
   site: "KFK",
+  ...fixedKfkFacts,
   size_guide_tab_status: "confirmed_present",
   size_guide_location: "product_tab",
   verification_status: "verified",
@@ -59,6 +69,7 @@ const forbiddenTerms = [
   "licensed",
   "premium",
   "same as players wear",
+  "supporter style",
   "true to size",
   "breathable",
   "moisture-wicking",
@@ -72,6 +83,9 @@ function getFacts() {
   for (const [key, value] of data.entries()) {
     facts[key] = typeof value === "string" ? value.trim() : value;
   }
+
+  Object.assign(facts, fixedKfkFacts);
+  facts.badge_status = facts.badge_status === "available" ? "available" : "unavailable";
 
   applyAnotherValue(facts, "kit_type");
   applyAnotherValue(facts, "sleeve_length");
@@ -236,6 +250,9 @@ function syncProductControlsFromFacts(facts) {
   productPrintSelect.value = facts.listing_configuration || "plain_customisable";
   productPrintName.value = facts.pre_applied_name || "";
   productPrintNumber.value = facts.pre_applied_number || "";
+  mainColourShirtInput.value = facts.main_colour_shirt || "";
+  mainColourShortsInput.value = facts.main_colour_shorts || "";
+  badgeStatusSelect.value = facts.badge_status === "available" ? "available" : "unavailable";
   syncProductSelectionFields();
 }
 
@@ -279,7 +296,7 @@ function applyDerivedSizeFacts(facts) {
   }
 
   if (facts.audience === "kids") {
-    facts.visible_size_range = "Kids sizes 16-28";
+    facts.visible_size_range = "Kids sizes 16-28, suggested ages 3-13";
     facts.size_profile = "kids_16_28";
     return;
   }
@@ -753,6 +770,7 @@ function validateFacts(facts, branch) {
     "size_profile",
     "listing_configuration",
     "personalisation_status",
+    "badge_status",
     "verification_status",
     "fact_status"
   ];
@@ -762,6 +780,22 @@ function validateFacts(facts, branch) {
       blockers.push(`${field} is required and cannot be unknown.`);
     }
   });
+
+  if (!["available", "unavailable"].includes(facts.badge_status)) {
+    blockers.push("badge_status must be available or unavailable.");
+  }
+
+  if (facts.version_style !== "fan_version") {
+    blockers.push("KFK products must use the fixed fan version.");
+  }
+
+  if (facts.material !== "polyester") {
+    blockers.push("KFK products must use the fixed polyester material value.");
+  }
+
+  if (Number(facts.badge_price_gbp) !== 3.99) {
+    blockers.push("The fixed sleeve badge price must be £3.99.");
+  }
 
   if (facts.verification_status === "conflict" || facts.verification_status === "unverified") {
     blockers.push(`verification_status is ${facts.verification_status}.`);
@@ -901,9 +935,51 @@ function includedItemsHtml(facts) {
   return items.join("\n");
 }
 
+function mainColoursLine(facts) {
+  const colours = [];
+  const shirtColour = String(facts.main_colour_shirt || "").trim();
+  const shortsColour = String(facts.main_colour_shorts || "").trim();
+
+  if (shirtColour) colours.push(`${sentenceStart(shirtColour)} shirt`);
+  if (shortsColour) colours.push(`${sentenceStart(shortsColour)} shorts`);
+  if (!colours.length) return "";
+
+  return `<li><strong>Main colours:</strong> ${esc(colours.join("; "))}. Exact shades may vary slightly between screens and production batches. Please use the product photos as your guide.</li>`;
+}
+
+function materialLine(facts) {
+  const notes = templateLibrary.copyRules?.materialNotes || [];
+  const note = notes.length
+    ? pick(notes, facts, 4)
+    : "The fabric is designed to be lightweight and quick-drying. Exact fibre composition and fabric feel may vary slightly between production batches.";
+
+  return `<li><strong>Material:</strong> Polyester. ${esc(note)}</li>`;
+}
+
+function badgeLine(facts) {
+  if (facts.badge_status !== "available") return "";
+
+  const price = Number(facts.badge_price_gbp || fixedKfkFacts.badge_price_gbp).toFixed(2);
+  return `<li><strong>Sleeve badge:</strong> An optional Premier League sleeve badge can be added for &pound;${price}. Select it in the product options if required. It is not included in the base kit.</li>`;
+}
+
+function sizingWarningLine(facts) {
+  const warningGroups = templateLibrary.copyRules?.sizingWarnings || {};
+  const pool = warningGroups[facts.audience] || warningGroups.generic || [];
+  if (!pool.length) return "";
+  return `<li>${esc(pick(pool, facts, 7))}</li>`;
+}
+
+function insertSizingWarning(lines, facts) {
+  const sizingLine = sizingWarningLine(facts);
+  if (!sizingLine) return lines;
+  if (!lines.length) return [sizingLine];
+  return [lines[0], sizingLine, ...lines.slice(1)];
+}
+
 function renderDescription(facts, branch) {
   const template = pickBranchVariant(branch, facts);
-  let opening = interpolate(template.opening, facts, { titleCaseProductLabels: true });
+  const opening = interpolate(template.opening, facts, { titleCaseProductLabels: true });
 
   const sizeLine = `<li><strong>Sizes:</strong> ${esc(facts.visible_size_range)}.${sizeGuideSentence(facts)}</li>`;
   const kitLine = facts.product_type === "full_kit"
@@ -911,8 +987,22 @@ function renderDescription(facts, branch) {
     : `<li><strong>Product type:</strong> ${esc(titleCaseToken(facts.kit_type))} ${esc(productItemLabel(facts))}.</li>`;
   const sleeveLabel = sleeveLengthLabel(facts);
   const sleeveLine = sleeveLabel ? `<li><strong>Sleeve length:</strong> ${esc(sleeveLabel)}.</li>` : "";
-  const configurationLine = interpolate(template.keyDetail, facts);
-  const beforeOrder = template.beforeOrder.map((line) => interpolate(line, facts)).join("\n");
+  const optionLines = [
+    interpolate(template.keyDetail, facts),
+    badgeLine(facts)
+  ].filter(Boolean);
+  const beforeOrderLines = template.beforeOrder
+    .map((line) => interpolate(line, facts))
+    .filter(Boolean);
+  const beforeOrder = insertSizingWarning(beforeOrderLines, facts).join("\n");
+  const productDetails = [
+    "<li><strong>Version:</strong> Fan version.</li>",
+    kitLine,
+    mainColoursLine(facts),
+    sizeLine,
+    sleeveLine,
+    materialLine(facts)
+  ].filter(Boolean);
 
   return [
     `<p>${opening}</p>`,
@@ -922,12 +1012,14 @@ function renderDescription(facts, branch) {
     includedItemsHtml(facts),
     "</ul>",
     "",
-    "<h3>Key Buying Details</h3>",
+    "<h3>Product Details</h3>",
     "<ul>",
-    sizeLine,
-    kitLine,
-    sleeveLine,
-    configurationLine,
+    productDetails.join("\n"),
+    "</ul>",
+    "",
+    "<h3>Options You Can Add</h3>",
+    "<ul>",
+    optionLines.join("\n"),
     "</ul>",
     "",
     "<h3>Before You Order</h3>",
@@ -1031,6 +1123,21 @@ function auditDescription(html, facts, blockers, reviewFlags, resolvedBranch = n
 
   if (unsupported.length) {
     blockers.push(`Description contains unsupported claim term(s): ${unsupported.join(", ")}.`);
+  }
+
+  if (facts.product_type !== "bundle") {
+    if (!text.includes("version: fan version")) {
+      blockers.push("Product descriptions must identify the fixed fan version.");
+    }
+    if (!text.includes("material: polyester")) {
+      blockers.push("Product descriptions must identify the fixed polyester material.");
+    }
+    if (facts.badge_status === "available" && (!text.includes("premier league sleeve badge") || !text.includes("3.99"))) {
+      blockers.push("Available badge products must show the Premier League badge option and £3.99 price.");
+    }
+    if (facts.badge_status === "unavailable" && text.includes("premier league sleeve badge")) {
+      blockers.push("Unavailable badge products must not show the badge option.");
+    }
   }
 
   if (facts.socks_status === "unavailable") {
@@ -1204,6 +1311,9 @@ function loadSample() {
     product_name: "Inter Miami Home Kids Football Kit 2026/27",
     team: "Inter Miami",
     season: "2026/27",
+    main_colour_shirt: "Pink",
+    main_colour_shorts: "Black",
+    badge_status: "unavailable",
     audience: "kids",
     product_type: "full_kit",
     kit_type: "home",
@@ -1303,6 +1413,12 @@ productNameInput.addEventListener("input", () => {
   variantOffset = 0;
   scheduleGenerate();
 });
+[mainColourShirtInput, mainColourShortsInput].forEach((field) => {
+  field.addEventListener("input", () => {
+    variantOffset = 0;
+    scheduleGenerate();
+  });
+});
 productOtherKitType.addEventListener("input", () => {
   syncProductSelectionFields();
   variantOffset = 0;
@@ -1318,7 +1434,8 @@ productOtherKitType.addEventListener("input", () => {
   productKindSelect,
   productKitTypeSelect,
   productSocksSelect,
-  productPrintSelect
+  productPrintSelect,
+  badgeStatusSelect
 ].forEach((field) => {
   field.addEventListener("change", () => {
     if (field === productPrintSelect) isPrintInferredFromProductName = false;

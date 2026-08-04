@@ -10,19 +10,19 @@
   const branches = {};
 
   const customPersonalisation = [
-    "<li><strong>Personalisation:</strong> Add an optional name and number using the product options.</li>",
-    "<li><strong>Personalisation:</strong> Custom name-and-number printing is available from the product options.</li>",
-    "<li><strong>Personalisation:</strong> You can choose an optional name and number before checkout.</li>",
-    "<li><strong>Personalisation:</strong> Name-and-number personalisation can be added if required.</li>",
-    "<li><strong>Personalisation:</strong> Select the product options to add a custom name and number.</li>"
+    "<li><strong>Name &amp; number:</strong> Not printed as standard. Personalisation can be added using the product options&mdash;names up to 13 letters and numbers up to 2 digits.</li>",
+    "<li><strong>Name &amp; number:</strong> The shirt is supplied without a name or number. Add personalisation through the product options&mdash;up to 13 letters and 2 digits.</li>",
+    "<li><strong>Name &amp; number:</strong> No name or number is applied as standard. You can add personalisation through the product options, with names up to 13 letters and numbers up to 2 digits.</li>",
+    "<li><strong>Name &amp; number:</strong> Personalisation is not printed as standard. Use the product options to add a name of up to 13 letters and a number of up to 2 digits.</li>",
+    "<li><strong>Name &amp; number:</strong> Choose the product options if you want to add a name and number&mdash;up to 13 letters and 2 digits.</li>"
   ];
 
   const customOrderNotes = [
-    "<li>If you add personalisation, check the spelling carefully. Names can contain up to 13 letters and numbers up to 2 digits.</li>",
-    "<li>Before checkout, confirm the name and number carefully. Names can contain up to 13 letters and numbers up to 2 digits.</li>",
-    "<li>For a personalised order, check every entered detail. Names can contain up to 13 letters and numbers up to 2 digits.</li>",
-    "<li>Review the selected name and number before ordering. Names can contain up to 13 letters and numbers up to 2 digits.</li>",
-    "<li>Check personalised details carefully before submitting the order. Names can contain up to 13 letters and numbers up to 2 digits.</li>"
+    "<li>Personalised items can't be returned for a change of mind, so please double-check the spelling and number before ordering.</li>",
+    "<li>Once a name and number are printed, the item can't be returned for a change of mind&mdash;please check the spelling carefully before ordering.</li>",
+    "<li>Please check the spelling and number carefully before ordering. Personalised items can't be returned for a change of mind.</li>",
+    "<li>Personalised orders can't be returned for a change of mind. Please check the spelling and number before adding to basket.</li>",
+    "<li>Double-check the spelling and number before ordering. Personalised items can't be returned for a change of mind.</li>"
   ];
 
   const playerPrint = [
@@ -40,6 +40,41 @@
     "<li>This product is supplied with a fixed player print; other name-and-number options are not available.</li>",
     "<li>Choose a customisable listing if you need another player name or number.</li>"
   ];
+
+  const materialNotes = [
+    "The fabric is designed to be lightweight and quick-drying. Exact fibre composition and fabric feel may vary slightly between production batches.",
+    "The fabric is made from polyester and designed to be lightweight and quick-drying. Fibre composition and fabric feel may vary slightly between batches.",
+    "Polyester fabric is designed to be lightweight and quick-drying. Minor differences in fibre composition and feel may occur between production runs.",
+    "The fabric is designed to be lightweight and quick to dry. Exact fibre composition and fabric feel can vary slightly from batch to batch."
+  ];
+
+  const sizingWarnings = {
+    kids: [
+      "Check your child's measurements against the Size Guide rather than ordering by age alone.",
+      "Measure your child and compare with the Size Guide before choosing a size.",
+      "Please use the measurements in the Size Guide rather than relying on age alone."
+    ],
+    adult: [
+      "Check your measurements against the Size Guide before choosing a size.",
+      "Compare your measurements with the Size Guide before ordering.",
+      "Please use the measurements in the Size Guide rather than relying on your usual size."
+    ],
+    women: [
+      "Check your measurements against the Size Guide before choosing a size.",
+      "Compare your measurements with the Size Guide before ordering.",
+      "Please use the measurements in the Size Guide rather than relying on your usual size."
+    ],
+    baby: [
+      "Check the measurements in the Size Guide before choosing a baby size.",
+      "Compare your baby's measurements with the Size Guide before ordering.",
+      "Please use the Size Guide measurements rather than relying on age alone."
+    ],
+    generic: [
+      "Check the measurements in the Size Guide before choosing a size.",
+      "Compare the measurements with the Size Guide before ordering.",
+      "Please use the Size Guide measurements rather than relying on age alone."
+    ]
+  };
 
   function branch(variants) {
     return { variants };
@@ -190,6 +225,10 @@
 
   window.PRODUCT_DESCRIPTION_TEMPLATES = {
     branchLabels,
-    branches
+    branches,
+    copyRules: {
+      materialNotes,
+      sizingWarnings
+    }
   };
 })();
