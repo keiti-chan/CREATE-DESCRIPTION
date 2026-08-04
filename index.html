@@ -74,6 +74,73 @@
             <input name="badge_league" type="text" placeholder="Premier League, LaLiga, Serie A">
           </label>
 
+          <div class="span-2 image-colour-assistant" id="imageColourAssistant">
+            <div class="assistant-heading">
+              <div>
+                <span class="field-label">Image colour assistant</span>
+                <p class="assistant-copy">Optional browser-only helper. Upload an image, select a garment, then click its colour in the preview. Suggestions are editable and must be checked by your team.</p>
+              </div>
+              <span id="imageColourStatus" class="badge neutral">Not used</span>
+            </div>
+
+            <div class="assistant-upload-row">
+              <label>
+                Upload product image
+                <input id="imageColourFile" type="file" accept="image/*">
+              </label>
+              <button id="clearImageColourBtn" type="button" disabled>Clear image</button>
+            </div>
+
+            <input name="image_colour_confirmation" type="hidden" value="not_used">
+
+            <div id="imageColourWorkspace" class="image-colour-workspace hidden">
+              <div class="image-colour-preview">
+                <canvas id="imageColourCanvas" aria-label="Product image colour sampler"></canvas>
+                <p id="imageColourInstruction" class="assistant-note">Choose a garment below, then click its main colour in the image.</p>
+              </div>
+
+              <div class="image-colour-review">
+                <p class="assistant-note"><strong>Review each suggestion:</strong> the tool does not approve colours automatically.</p>
+
+                <div class="colour-target" data-colour-target="shirt">
+                  <button class="colour-target-select" type="button" data-colour-target-select="shirt">
+                    <span>Shirt colour</span>
+                    <span id="shirtColourSuggestion" class="colour-suggestion-value">Not sampled</span>
+                  </button>
+                  <button class="use-colour-suggestion" type="button" data-use-colour-suggestion="shirt" disabled>Use suggestion</button>
+                </div>
+
+                <div class="colour-target" data-colour-target="shorts">
+                  <button class="colour-target-select" type="button" data-colour-target-select="shorts">
+                    <span>Shorts colour</span>
+                    <span id="shortsColourSuggestion" class="colour-suggestion-value">Not sampled</span>
+                  </button>
+                  <button class="use-colour-suggestion" type="button" data-use-colour-suggestion="shorts" disabled>Use suggestion</button>
+                </div>
+
+                <div class="colour-target" data-colour-target="socks">
+                  <button class="colour-target-select" type="button" data-colour-target-select="socks">
+                    <span>Socks colour</span>
+                    <span id="socksColourSuggestion" class="colour-suggestion-value">Not sampled</span>
+                  </button>
+                  <button class="use-colour-suggestion" type="button" data-use-colour-suggestion="socks" disabled>Use suggestion</button>
+                </div>
+
+                <div id="imageColourPalette" class="image-colour-palette hidden" aria-live="polite">
+                  <span class="palette-label">Image colour candidates:</span>
+                  <div id="imageColourPaletteButtons" class="palette-buttons"></div>
+                </div>
+
+                <label class="colour-confirmation">
+                  <input id="imageColourConfirm" type="checkbox" disabled>
+                  I checked the current colour fields and confirm they are ready to use.
+                </label>
+                <button id="confirmColoursGenerateBtn" class="primary" type="button" disabled>Confirm colours &amp; Generate</button>
+                <p id="imageColourReviewNote" class="assistant-note">Upload an image to begin. You can also enter colours manually.</p>
+              </div>
+            </div>
+          </div>
+
           <div class="span-2 fixed-facts-panel" aria-label="Fixed KFK facts">
             <span class="field-label">Fixed KFK facts</span>
             <div class="fixed-facts-summary">Version: Fan version &middot; Material: Polyester &middot; League-specific sleeve badge add-on: &pound;3.99 when available</div>
