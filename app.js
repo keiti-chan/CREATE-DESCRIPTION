@@ -18,6 +18,18 @@ const badgeLeagueField = document.querySelector("#badgeLeagueField");
 const badgeLeagueInput = form.elements.badge_league;
 const mainColourShortsField = document.querySelector("#mainColourShortsField");
 const mainColourSocksField = document.querySelector("#mainColourSocksField");
+const imageColourFileInput = document.querySelector("#imageColourFile");
+const clearImageColourBtn = document.querySelector("#clearImageColourBtn");
+const imageColourWorkspace = document.querySelector("#imageColourWorkspace");
+const imageColourCanvas = document.querySelector("#imageColourCanvas");
+const imageColourInstruction = document.querySelector("#imageColourInstruction");
+const imageColourStatus = document.querySelector("#imageColourStatus");
+const imageColourPalette = document.querySelector("#imageColourPalette");
+const imageColourPaletteButtons = document.querySelector("#imageColourPaletteButtons");
+const imageColourConfirm = document.querySelector("#imageColourConfirm");
+const confirmColoursGenerateBtn = document.querySelector("#confirmColoursGenerateBtn");
+const imageColourReviewNote = document.querySelector("#imageColourReviewNote");
+const imageColourConfirmationInput = form.elements.image_colour_confirmation;
 const productAudienceSelect = document.querySelector("#productAudienceSelect");
 const adultAudienceOption = productAudienceSelect.querySelector('option[value="adult"]');
 const productKindSelect = document.querySelector("#productKindSelect");
@@ -50,6 +62,18 @@ let generateTimer = null;
 let activeMode = "product";
 let bundleItems = [];
 let isPrintInferredFromProductName = false;
+const imageColourState = {
+  objectUrl: "",
+  imageLoaded: false,
+  activeTarget: "shirt",
+  suggestions: {
+    shirt: null,
+    shorts: null,
+    socks: null
+  },
+  palette: [],
+  confirmed: false
+};
 
 const fixedKfkFacts = Object.freeze({
   version_style: "fan_version",
@@ -268,6 +292,7 @@ function syncProductSelectionFields() {
   if (!usesSocksColour) mainColourSocksInput.value = "";
 
   syncBadgeField();
+  updateImageColourAssistantUi();
 }
 
 function syncBadgeField() {
@@ -275,6 +300,348 @@ function syncBadgeField() {
   badgeLeagueField.classList.toggle("hidden", !isAvailable);
   badgeLeagueInput.required = isAvailable;
   if (!isAvailable) badgeLeagueInput.value = "";
+}
+
+const imageColourReference = [
+  { label: "White", rgb: [255, 255, 255] },
+  { label: "Black", rgb: [20, 20, 20] },
+  { label: "Red", rgb: [205, 35, 45] },
+  { label: "Blue", rgb: [35, 85, 180] },
+  { label: "Light blue", rgb: [120, 190, 225] },
+  { label: "Navy", rgb: [25, 45, 100] },
+  { label: "Green", rgb: [40, 145, 75] },
+  { label: "Yellow", rgb: [235, 195, 35] },
+  { label: "Orange", rgb: [230, 115, 35] },
+  { label: "Pink", rgb: [225, 95, 145] },
+  { label: "Purple", rgb: [125, 65, 160] },
+  { label: "Grey", rgb: [135, 140, 145] },
+  { label: "Brown", rgb: [125, 75, 45] },
+  { label: "Beige", rgb: [215, 185, 135] },
+  { label: "Claret", rgb: [115, 25, 45] },
+  { label: "Multi-colour", rgb: [120, 120, 120] }
+];
+
+function currentImageColourTargets() {
+  const isKit = productKindSelect.value === "Kit" || productKindSelect.value === "Long Sleeve Kit";
+  const targets = [
+    { key: "shirt", label: "shirt", input: mainColourShirtInput }
+  ];
+
+  if (isKit) {
+    targets.push({ key: "shorts", label: "shorts", input: mainColourShortsInput });
+    if (productSocksSelect.value === "included") {
+      targets.push({ key: "socks", label: "socks", input: mainColourSocksInput });
+    }
+  }
+
+  return targets;
+}
+
+function imageColourTarget(key) {
+  return currentImageColourTargets().find((target) => target.key === key) || null;
+}
+
+function imageColourRow(key) {
+  return document.querySelector(`[data-colour-target="${key}"]`);
+}
+
+function imageColourSuggestionValue(key) {
+  return document.querySelector(`#${key}ColourSuggestion`);
+}
+
+function imageColourUseButton(key) {
+  return document.querySelector(`[data-use-colour-suggestion="${key}"]`);
+}
+
+function rgbToHex(rgb) {
+  return `#${rgb.map((value) => Math.max(0, Math.min(255, Math.round(value))).toString(16).padStart(2, "0")).join("")}`.toUpperCase();
+}
+
+function mapRgbToImageColour(rgb) {
+  const [red, green, blue] = rgb;
+  let best = imageColourReference[0];
+  let bestDistance = Number.POSITIVE_INFINITY;
+
+  imageColourReference.forEach((reference) => {
+    const distance = ((red - reference.rgb[0]) ** 2)
+      + ((green - reference.rgb[1]) ** 2)
+      + ((blue - reference.rgb[2]) ** 2);
+    if (distance < bestDistance) {
+      best = reference;
+      bestDistance = distance;
+    }
+  });
+
+  return {
+    label: best.label,
+    rgb: [red, green, blue]
+  };
+}
+
+function averageCanvasColour(x, y, radius = 10) {
+  const context = imageColourCanvas.getContext("2d");
+  if (!context || !imageColourCanvas.width || !imageColourCanvas.height) return null;
+
+  const left = Math.max(0, Math.floor(x - radius));
+  const top = Math.max(0, Math.floor(y - radius));
+  const right = Math.min(imageColourCanvas.width, Math.ceil(x + radius));
+  const bottom = Math.min(imageColourCanvas.height, Math.ceil(y + radius));
+  const pixels = context.getImageData(left, top, Math.max(1, right - left), Math.max(1, bottom - top)).data;
+  let red = 0;
+  let green = 0;
+  let blue = 0;
+  let count = 0;
+
+  for (let index = 0; index < pixels.length; index += 4) {
+    if (pixels[index + 3] < 120) continue;
+    red += pixels[index];
+    green += pixels[index + 1];
+    blue += pixels[index + 2];
+    count += 1;
+  }
+
+  if (!count) return null;
+  return mapRgbToImageColour([
+    Math.round(red / count),
+    Math.round(green / count),
+    Math.round(blue / count)
+  ]);
+}
+
+function buildImageColourPalette() {
+  const context = imageColourCanvas.getContext("2d");
+  if (!context || !imageColourCanvas.width || !imageColourCanvas.height) return [];
+
+  const pixels = context.getImageData(0, 0, imageColourCanvas.width, imageColourCanvas.height).data;
+  const step = Math.max(1, Math.ceil(Math.sqrt((imageColourCanvas.width * imageColourCanvas.height) / 12000)));
+  const buckets = new Map();
+
+  for (let y = 0; y < imageColourCanvas.height; y += step) {
+    for (let x = 0; x < imageColourCanvas.width; x += step) {
+      const index = ((y * imageColourCanvas.width) + x) * 4;
+      if (pixels[index + 3] < 120) continue;
+
+      const red = pixels[index];
+      const green = pixels[index + 1];
+      const blue = pixels[index + 2];
+      if (red > 248 && green > 248 && blue > 248) continue;
+
+      const bucketRgb = [
+        Math.min(255, Math.round(red / 32) * 32),
+        Math.min(255, Math.round(green / 32) * 32),
+        Math.min(255, Math.round(blue / 32) * 32)
+      ];
+      const key = bucketRgb.join(",");
+      const bucket = buckets.get(key) || { count: 0, red: 0, green: 0, blue: 0 };
+      bucket.count += 1;
+      bucket.red += red;
+      bucket.green += green;
+      bucket.blue += blue;
+      buckets.set(key, bucket);
+    }
+  }
+
+  const grouped = new Map();
+  [...buckets.values()].forEach((bucket) => {
+    const rgb = [
+      Math.round(bucket.red / bucket.count),
+      Math.round(bucket.green / bucket.count),
+      Math.round(bucket.blue / bucket.count)
+    ];
+    const mapped = mapRgbToImageColour(rgb);
+    const existing = grouped.get(mapped.label) || { label: mapped.label, count: 0, red: 0, green: 0, blue: 0 };
+    existing.count += bucket.count;
+    existing.red += mapped.rgb[0] * bucket.count;
+    existing.green += mapped.rgb[1] * bucket.count;
+    existing.blue += mapped.rgb[2] * bucket.count;
+    grouped.set(mapped.label, existing);
+  });
+
+  return [...grouped.values()]
+    .sort((left, right) => right.count - left.count)
+    .slice(0, 8)
+    .map((item) => ({
+      label: item.label,
+      rgb: [
+        Math.round(item.red / item.count),
+        Math.round(item.green / item.count),
+        Math.round(item.blue / item.count)
+      ]
+    }));
+}
+
+function updateImageColourConfirmation(status) {
+  imageColourState.confirmed = status === "confirmed";
+  imageColourConfirmationInput.value = status;
+  imageColourConfirm.checked = imageColourState.confirmed;
+}
+
+function markImageColoursForReview() {
+  if (!imageColourState.imageLoaded) return;
+  updateImageColourConfirmation("pending_review");
+  updateImageColourAssistantUi();
+}
+
+function setActiveImageColourTarget(key) {
+  if (!imageColourTarget(key)) return;
+  imageColourState.activeTarget = key;
+  imageColourInstruction.textContent = `Click the main ${key} colour in the image. The result will be a suggestion for review.`;
+  updateImageColourAssistantUi();
+}
+
+function setImageColourSuggestion(key, suggestion) {
+  if (!imageColourTarget(key) || !suggestion) return;
+  imageColourState.suggestions[key] = suggestion;
+  markImageColoursForReview();
+  updateImageColourAssistantUi();
+}
+
+function renderImageColourPalette() {
+  imageColourPaletteButtons.replaceChildren();
+  imageColourPalette.classList.toggle("hidden", !imageColourState.palette.length);
+
+  imageColourState.palette.forEach((colour) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "palette-button";
+    button.title = `Use ${colour.label} as a suggestion for the selected garment`;
+
+    const swatch = document.createElement("span");
+    swatch.className = "palette-swatch";
+    swatch.style.backgroundColor = rgbToHex(colour.rgb);
+
+    const label = document.createElement("span");
+    label.textContent = colour.label;
+    button.append(swatch, label);
+    button.addEventListener("click", () => setImageColourSuggestion(imageColourState.activeTarget, colour));
+    imageColourPaletteButtons.append(button);
+  });
+}
+
+function updateImageColourAssistantUi() {
+  const hasImage = imageColourState.imageLoaded;
+  imageColourWorkspace.classList.toggle("hidden", !hasImage);
+  clearImageColourBtn.disabled = !hasImage;
+  imageColourConfirm.disabled = !hasImage;
+  confirmColoursGenerateBtn.disabled = !hasImage || imageColourState.confirmed || !imageColourConfirm.checked;
+
+  const targets = currentImageColourTargets();
+  if (!targets.some((target) => target.key === imageColourState.activeTarget)) {
+    imageColourState.activeTarget = targets[0]?.key || "shirt";
+  }
+
+  ["shirt", "shorts", "socks"].forEach((key) => {
+    const row = imageColourRow(key);
+    const visible = hasImage && targets.some((target) => target.key === key);
+    const suggestion = imageColourState.suggestions[key];
+    row.classList.toggle("hidden", !visible);
+    row.classList.toggle("active", visible && imageColourState.activeTarget === key);
+    imageColourSuggestionValue(key).textContent = suggestion
+      ? `${suggestion.label} (${rgbToHex(suggestion.rgb)})`
+      : "Not sampled";
+    imageColourUseButton(key).disabled = !visible || !suggestion;
+  });
+
+  if (!hasImage) {
+    setBadge(imageColourStatus, "Not used", "neutral");
+    imageColourReviewNote.textContent = "Upload an image to begin. You can also enter colours manually.";
+    return;
+  }
+
+  if (imageColourState.confirmed) {
+    setBadge(imageColourStatus, "Confirmed", "pass");
+    imageColourReviewNote.textContent = "Colours confirmed from the current editable fields. Generate uses these final values.";
+  } else {
+    setBadge(imageColourStatus, "Review needed", "review");
+    imageColourReviewNote.textContent = "Review or edit the colour fields, tick the confirmation box, then use Confirm colours & Generate. Clear the image to return to manual generation.";
+  }
+
+  renderImageColourPalette();
+}
+
+function resetImageColourAssistant({ clearFile = false } = {}) {
+  if (imageColourState.objectUrl) URL.revokeObjectURL(imageColourState.objectUrl);
+  imageColourState.objectUrl = "";
+  imageColourState.imageLoaded = false;
+  imageColourState.activeTarget = "shirt";
+  imageColourState.suggestions = { shirt: null, shorts: null, socks: null };
+  imageColourState.palette = [];
+  updateImageColourConfirmation("not_used");
+  imageColourCanvas.width = 1;
+  imageColourCanvas.height = 1;
+  imageColourCanvas.getContext("2d")?.clearRect(0, 0, 1, 1);
+  if (clearFile) imageColourFileInput.value = "";
+  updateImageColourAssistantUi();
+}
+
+function drawImageForColourAssistant(image) {
+  const maxWidth = 720;
+  const scale = Math.min(1, maxWidth / image.naturalWidth);
+  imageColourCanvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+  imageColourCanvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+  const context = imageColourCanvas.getContext("2d");
+  if (!context) return false;
+  context.clearRect(0, 0, imageColourCanvas.width, imageColourCanvas.height);
+  context.drawImage(image, 0, 0, imageColourCanvas.width, imageColourCanvas.height);
+  return true;
+}
+
+function handleImageColourFileChange() {
+  const file = imageColourFileInput.files?.[0];
+  resetImageColourAssistant();
+  if (!file) return;
+
+  if (!file.type.startsWith("image/")) {
+    imageColourReviewNote.textContent = "Please choose an image file. The image colour assistant does not upload files.";
+    return;
+  }
+
+  const objectUrl = URL.createObjectURL(file);
+  imageColourState.objectUrl = objectUrl;
+  const image = new Image();
+  image.onload = () => {
+    if (!drawImageForColourAssistant(image)) {
+      resetImageColourAssistant({ clearFile: true });
+      imageColourReviewNote.textContent = "This image could not be prepared for colour sampling. Enter the colours manually.";
+      return;
+    }
+
+    imageColourState.imageLoaded = true;
+    imageColourState.activeTarget = currentImageColourTargets()[0]?.key || "shirt";
+    imageColourState.palette = buildImageColourPalette();
+    updateImageColourConfirmation("pending_review");
+    imageColourInstruction.textContent = `Click the main ${imageColourState.activeTarget} colour in the image. The result will be a suggestion for review.`;
+    updateImageColourAssistantUi();
+  };
+  image.onerror = () => {
+    resetImageColourAssistant({ clearFile: true });
+    imageColourReviewNote.textContent = "This image could not be read. Enter the colours manually.";
+  };
+  image.src = objectUrl;
+}
+
+function handleImageColourCanvasClick(event) {
+  if (!imageColourState.imageLoaded) return;
+  const bounds = imageColourCanvas.getBoundingClientRect();
+  const x = ((event.clientX - bounds.left) / bounds.width) * imageColourCanvas.width;
+  const y = ((event.clientY - bounds.top) / bounds.height) * imageColourCanvas.height;
+  const suggestion = averageCanvasColour(x, y);
+  if (suggestion) setImageColourSuggestion(imageColourState.activeTarget, suggestion);
+}
+
+function useImageColourSuggestion(key) {
+  const target = imageColourTarget(key);
+  const suggestion = imageColourState.suggestions[key];
+  if (!target || !suggestion) return;
+  target.input.value = suggestion.label;
+  target.input.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+function confirmImageColoursAndGenerate() {
+  if (!imageColourState.imageLoaded || !imageColourConfirm.checked) return;
+  updateImageColourConfirmation("confirmed");
+  updateImageColourAssistantUi();
+  scheduleGenerate();
 }
 
 function syncProductControlsFromFacts(facts) {
@@ -967,6 +1334,10 @@ function validateFacts(facts, branch) {
     reviewFlags.push("Socks are included but the socks colour is blank; confirm it or leave it omitted if it cannot be verified.");
   }
 
+  if (imageColourState.imageLoaded && facts.image_colour_confirmation !== "confirmed") {
+    blockers.push("Image colour suggestions are awaiting team confirmation. Review the editable colour fields and click Confirm colours & Generate, or clear the image before generating.");
+  }
+
   return { blockers, reviewFlags };
 }
 
@@ -1487,13 +1858,33 @@ loadSampleBtn.addEventListener("click", loadSample);
 nextVariantBtn.addEventListener("click", () => {
   scheduleGenerate({ advanceVariant: true });
 });
+imageColourFileInput.addEventListener("change", handleImageColourFileChange);
+clearImageColourBtn.addEventListener("click", () => resetImageColourAssistant({ clearFile: true }));
+imageColourCanvas.addEventListener("click", handleImageColourCanvasClick);
+document.querySelectorAll("[data-colour-target-select]").forEach((button) => {
+  button.addEventListener("click", () => setActiveImageColourTarget(button.dataset.colourTargetSelect));
+});
+document.querySelectorAll("[data-use-colour-suggestion]").forEach((button) => {
+  button.addEventListener("click", () => useImageColourSuggestion(button.dataset.useColourSuggestion));
+});
+imageColourConfirm.addEventListener("change", () => {
+  if (!imageColourState.imageLoaded) return;
+  const isChecked = imageColourConfirm.checked;
+  imageColourState.confirmed = false;
+  imageColourConfirmationInput.value = "pending_review";
+  imageColourConfirm.checked = isChecked;
+  updateImageColourAssistantUi();
+});
+confirmColoursGenerateBtn.addEventListener("click", confirmImageColoursAndGenerate);
 productNameInput.addEventListener("input", () => {
   inferProductSelectionFromName();
+  markImageColoursForReview();
   variantOffset = 0;
   scheduleGenerate();
 });
 [mainColourShirtInput, mainColourShortsInput, mainColourSocksInput, badgeLeagueInput].forEach((field) => {
   field.addEventListener("input", () => {
+    if (field !== badgeLeagueInput) markImageColoursForReview();
     variantOffset = 0;
     scheduleGenerate();
   });
@@ -1507,48 +1898,3 @@ productOtherKitType.addEventListener("input", () => {
   field.addEventListener("input", () => {
     isPrintInferredFromProductName = false;
   });
-});
-[
-  productAudienceSelect,
-  productKindSelect,
-  productKitTypeSelect,
-  productSocksSelect,
-  productPrintSelect,
-  badgeStatusSelect
-].forEach((field) => {
-  field.addEventListener("change", () => {
-    if (field === productPrintSelect) isPrintInferredFromProductName = false;
-    syncProductSelectionFields();
-    variantOffset = 0;
-    scheduleGenerate();
-  });
-});
-form.querySelectorAll("select").forEach((select) => {
-  select.addEventListener("change", () => {
-    syncProductTypeDefaults();
-    syncAnotherInputs();
-  });
-});
-copyBtn.addEventListener("click", async () => {
-  if (!htmlOutput.value) return;
-  await navigator.clipboard.writeText(htmlOutput.value);
-  copyBtn.textContent = "Copied";
-  window.setTimeout(() => {
-    copyBtn.textContent = "Copy HTML";
-  }, 1200);
-});
-bundleProductSelect.addEventListener("change", syncBundleItemControls);
-bundlePrintSelect.addEventListener("change", syncBundleItemControls);
-bundlePrintSelect.addEventListener("input", syncBundleItemControls);
-addBundleItemBtn.addEventListener("click", addSelectedBundleItem);
-bundleItemAnother.addEventListener("keydown", (event) => {
-  if (event.key !== "Enter") return;
-  event.preventDefault();
-  addSelectedBundleItem();
-});
-
-loadSample();
-syncProductTypeDefaults();
-syncAnotherInputs();
-syncBundleItemControls();
-renderBundleItemsList();
