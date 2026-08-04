@@ -12,12 +12,15 @@ supplier claims, or replace human approval.
 There is nothing to install. Open [`index.html`](./index.html) in a browser.
 
 1. Stay in **Product** mode for individual products.
-2. Enter only confirmed facts: product identity, contents, socks status, sizes
-   and the correct print configuration.
-3. Add a verified design detail only when the image or approved record supports
+2. Enter only confirmed facts: product identity, contents, socks status, sizes,
+   main colours and the correct print configuration.
+3. Fixed KFK facts are pre-applied: Fan version, Polyester and a £3.99
+   Premier League sleeve-badge price when the badge option is available.
+4. Select the sleeve-badge availability for the listing.
+5. Add a verified design detail only when the image or approved record supports
    it. Leave it blank when unsure.
-4. Select **Generate**.
-5. Check the Preview, HTML and Audit tabs before copying the HTML into a
+6. Select **Generate**.
+7. Check the Preview, HTML and Audit tabs before copying the HTML into a
    human-review workflow.
 
 The **Load sample** button is for testing the builder only. Do not use sample
@@ -29,7 +32,9 @@ facts as evidence for a real product.
 - socks included, unavailable or not applicable;
 - plain customisable versus fixed player-print listings;
 - visible size range and Size Guide wording;
-- required player name and number for fixed-print products; and
+- required player name and number for fixed-print products;
+- fixed KFK facts and approved material wording;
+- main-colour and sleeve-badge details; and
 - unsupported claims and unsafe HTML.
 
 For KFK no-socks products, **What’s Included** lists only the shirt and
@@ -48,8 +53,10 @@ Product descriptions use one clear pattern for each meaningful configuration:
 6. Player-print shirt only
 
 The copy changes with real facts such as the product name, included pieces,
-size range, player print and optional verified design detail. It does not rotate
-phrases simply to make similar listings look different.
+size range, main colours, badge availability, player print and optional verified
+design detail. Approved wording pools may rotate only for controlled areas such as
+material notes, sizing warnings and plain-product personalisation. Critical facts,
+prices, limits and return warnings must keep their approved meaning.
 
 Women’s and baby inputs are available in the form, but their broader KFK rollout
 and product-fact validation are separate work. Do not treat an available input
@@ -84,10 +91,11 @@ copy or adding a branch.
 
 ## Scope and ownership
 
-Keep detailed sizing, delivery, returns, care and general personalisation policy
-in their approved site components rather than repeating them in each
-description. The KFK content knowledge base remains the source of truth for
-claim safety and publishing approval.
+Keep detailed sizing tables, delivery, returns, care and general personalisation
+policy in their approved site components. Product descriptions may include the
+short, approved sizing and personalisation warnings used by this builder. The
+KFK content knowledge base remains the source of truth for claim safety and
+publishing approval.
 
 Bundles remain in the prototype, but bundle content is intentionally outside
 the current product-template rewrite.

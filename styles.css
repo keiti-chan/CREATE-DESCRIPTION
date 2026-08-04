@@ -213,6 +213,21 @@ label {
   font-weight: 700;
 }
 
+.fixed-facts-panel {
+  display: grid;
+  gap: 6px;
+}
+
+.fixed-facts-summary {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .span-2 {
   grid-column: span 2;
 }
