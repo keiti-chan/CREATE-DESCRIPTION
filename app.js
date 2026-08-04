@@ -40,6 +40,7 @@ let variantOffset = 0;
 let generateTimer = null;
 let activeMode = "product";
 let bundleItems = [];
+let isPrintInferredFromProductName = false;
 
 const defaultFacts = {
   site: "KFK",
@@ -169,6 +170,12 @@ function inferProductSelectionFromName() {
     productPrintSelect.value = "pre_applied_player";
     productPrintName.value = playerPrintMatch[1];
     productPrintNumber.value = playerPrintMatch[2];
+    isPrintInferredFromProductName = true;
+  } else if (isPrintInferredFromProductName) {
+    productPrintSelect.value = "plain_customisable";
+    productPrintName.value = "";
+    productPrintNumber.value = "";
+    isPrintInferredFromProductName = false;
   }
 
   syncProductSelectionFields();
@@ -530,20 +537,38 @@ function stableHash(text) {
   return String(text).split("").reduce((sum, char) => sum + char.charCodeAt(0), 0);
 }
 
-function interpolate(template, facts) {
+function titleCasePhrase(value) {
+  return String(value || "").replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
+}
+
+function openingAudienceLabel(value) {
+  const labels = {
+    kids: "Kids",
+    adult: "Adult",
+    women: "Women",
+    baby: "Baby"
+  };
+  return labels[value] || "";
+}
+
+function interpolate(template, facts, { titleCaseProductLabels = false } = {}) {
+  const sleeveLabel = titleCaseProductLabels ? titleCasePhrase(shirtLabel(facts)) : shirtLabel(facts);
+  const productItem = titleCaseProductLabels ? titleCasePhrase(productItemLabel(facts)) : productItemLabel(facts);
+
   return template
     .replaceAll("{product_name}", esc(facts.product_name))
     .replaceAll("{team}", esc(facts.team))
     .replaceAll("{season}", esc(facts.season))
     .replaceAll("{kit_type_label}", esc(titleCaseToken(facts.kit_type)))
-    .replaceAll("{sleeve_label}", esc(shirtLabel(facts)))
-    .replaceAll("{product_item_label}", esc(productItemLabel(facts)))
+    .replaceAll("{sleeve_label}", esc(sleeveLabel))
+    .replaceAll("{product_item_label}", esc(productItem))
     .replaceAll("{sock_phrase}", facts.socks_status === "included" ? " and socks" : "")
     .replaceAll("{player_name}", esc(displayName(facts.pre_applied_name)))
     .replaceAll("{player_number}", esc(facts.pre_applied_number))
     .replaceAll("{bundle_name}", esc(facts.bundle_name))
     .replaceAll("{bundle_theme}", esc(facts.bundle_theme))
     .replaceAll("{audience_label}", esc(audienceLabel(facts.audience)))
+    .replaceAll("{audience_opening_label}", esc(openingAudienceLabel(facts.audience)))
     .replaceAll("{bundle_items_summary}", esc(bundleItemsSummary(facts.bundle_items_list)))
     .replaceAll("{bundle_personalisation_line}", bundlePersonalisationLine(facts));
 }
@@ -878,7 +903,7 @@ function includedItemsHtml(facts) {
 
 function renderDescription(facts, branch) {
   const template = pickBranchVariant(branch, facts);
-  let opening = interpolate(template.opening, facts);
+  let opening = interpolate(template.opening, facts, { titleCaseProductLabels: true });
 
   const sizeLine = `<li><strong>Sizes:</strong> ${esc(facts.visible_size_range)}.${sizeGuideSentence(facts)}</li>`;
   const kitLine = facts.product_type === "full_kit"
@@ -1283,6 +1308,11 @@ productOtherKitType.addEventListener("input", () => {
   variantOffset = 0;
   scheduleGenerate();
 });
+[productPrintName, productPrintNumber].forEach((field) => {
+  field.addEventListener("input", () => {
+    isPrintInferredFromProductName = false;
+  });
+});
 [
   productAudienceSelect,
   productKindSelect,
@@ -1291,6 +1321,7 @@ productOtherKitType.addEventListener("input", () => {
   productPrintSelect
 ].forEach((field) => {
   field.addEventListener("change", () => {
+    if (field === productPrintSelect) isPrintInferredFromProductName = false;
     syncProductSelectionFields();
     variantOffset = 0;
     scheduleGenerate();

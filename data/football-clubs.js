@@ -1654,15 +1654,15 @@
   const additionalClubNames = [
     "Al Ahly", "Al Hilal", "Al Nassr", "Arsenal", "Aston Villa", "Athletic Bilbao",
     "Atalanta", "Barcelona", "Bayer Leverkusen", "Borussia Dortmund", "Brighton & Hove Albion",
-    "Chelsea", "Eintracht Frankfurt", "FC Porto", "Fiorentina", "Flamengo", "Inter Milan",
-    "Juventus", "Liverpool", "Olympique Lyon", "Olympique Marseille", "PSV Eindhoven",
+    "Chelsea", "Dortmund", "Eintracht Frankfurt", "FC Porto", "Fiorentina", "Flamengo", "Inter Milan",
+    "Juventus", "Liverpool", "Olympique Lyon", "Olympique Marseille", "PSG", "PSV Eindhoven",
     "Real Betis", "Real Madrid", "River Plate", "Roma", "Sporting Lisbon", "Valencia",
     "Villarreal", "Wolverhampton Wanderers"
   ];
 
   const aliases = {
     "Liverpool": ["Lvrp00l"],
-    "Arsenal": ["Arsen^_al"],
+    "Arsenal": ["Arsen^_^al"],
     "Manchester United": ["Man Utd", "Man United", "Man^U^nited"],
     "Manchester City": ["Man City"],
     "Tottenham Hotspur": ["Tottenham", "Spurs"],
@@ -1671,11 +1671,11 @@
     "Newcastle United": ["Newcastle"],
     "Nottingham Forest": ["Nottm Forest"],
     "Brighton & Hove Albion": ["Brighton"],
-    "Paris Saint Germain": ["PSG", "Paris SG", "P^_SG"],
+    "PSG": ["Paris Saint Germain", "Paris SG", "P^_^SG"],
     "Inter": ["Inter Milan", "Internazionale"],
     "AC Milan": ["Milan"],
-    "Bayern Munich": ["Bayern", "FC Bayern", "Bay^_rn"],
-    "Borussia Dortmund": ["Dortmund", "D0rt^_mund"],
+    "Bayern Munich": ["Bayern", "FC Bayern", "Bay^_^rn"],
+    "Dortmund": ["Borussia Dortmund", "D0rt^_^mund"],
     "Borussia Monchengladbach": ["Gladbach"],
     "Atletico Madrid": ["Atletico"],
     "Athletic Bilbao": ["Athletic Club"],
