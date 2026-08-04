@@ -15,6 +15,7 @@ const mainColourShortsInput = form.elements.main_colour_shorts;
 const badgeStatusSelect = form.elements.badge_status;
 const badgeLeagueField = document.querySelector("#badgeLeagueField");
 const badgeLeagueInput = form.elements.badge_league;
+const mainColourShortsField = document.querySelector("#mainColourShortsField");
 const productAudienceSelect = document.querySelector("#productAudienceSelect");
 const productKindSelect = document.querySelector("#productKindSelect");
 const productKitTypeSelect = document.querySelector("#productKitTypeSelect");
@@ -241,6 +242,12 @@ function syncProductSelectionFields() {
     productPrintName.value = "";
     productPrintNumber.value = "";
   }
+
+  const usesShortsColour = isKit;
+  mainColourShortsInput.disabled = !usesShortsColour;
+  mainColourShortsField.classList.toggle("disabled", !usesShortsColour);
+  mainColourShortsField.title = usesShortsColour ? "" : "Shorts colour applies to kits only.";
+  if (!usesShortsColour) mainColourShortsInput.value = "";
 
   syncBadgeField();
 }
@@ -955,7 +962,9 @@ function includedItemsHtml(facts) {
 function mainColoursLine(facts) {
   const colours = [];
   const shirtColour = String(facts.main_colour_shirt || "").trim();
-  const shortsColour = String(facts.main_colour_shorts || "").trim();
+  const shortsColour = facts.product_type === "full_kit"
+    ? String(facts.main_colour_shorts || "").trim()
+    : "";
 
   if (shirtColour) colours.push(`${sentenceStart(shirtColour)} shirt`);
   if (shortsColour) colours.push(`${sentenceStart(shortsColour)} shorts`);
@@ -1154,6 +1163,9 @@ function auditDescription(html, facts, blockers, reviewFlags, resolvedBranch = n
     }
     if (facts.badge_status === "unavailable" && text.includes("sleeve badge")) {
       blockers.push("Unavailable badge products must not show the badge option.");
+    }
+    if (facts.product_type === "shirt_only" && sectionText("product details").includes("shorts")) {
+      blockers.push("Shirt-only products must not show a shorts colour in Product Details.");
     }
   }
 
