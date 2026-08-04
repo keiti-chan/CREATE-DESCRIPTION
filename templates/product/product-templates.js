@@ -1,6 +1,6 @@
 (function () {
-  const fullKitAudiences = ["kids", "adult", "women", "baby"];
-  const shirtAudiences = ["kids", "adult", "women", "baby"];
+  const fullKitAudiences = ["kids", "men", "adult", "women", "baby"];
+  const shirtAudiences = ["kids", "men", "adult", "women", "baby"];
   const configurations = [
     { key: "plain_customisable", label: "Plain", factory: "custom" },
     { key: "pre_applied_player", label: "Player", factory: "player" }
@@ -59,6 +59,11 @@
       "Compare your measurements with the Size Guide before ordering.",
       "Please use the measurements in the Size Guide rather than relying on your usual size."
     ],
+    men: [
+      "Check your measurements against the Size Guide before choosing a size.",
+      "Compare your measurements with the Size Guide before ordering.",
+      "Please use the measurements in the Size Guide rather than relying on your usual size."
+    ],
     women: [
       "Check your measurements against the Size Guide before choosing a size.",
       "Compare your measurements with the Size Guide before ordering.",
@@ -98,6 +103,11 @@
       adult: {
         label: "adult",
         buyer: "adult buyers",
+        owner: "{team} supporters"
+      },
+      men: {
+        label: "men's",
+        buyer: "men",
         owner: "{team} supporters"
       },
       women: {
