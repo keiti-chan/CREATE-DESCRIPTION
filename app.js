@@ -1404,8 +1404,7 @@ function materialLine(facts) {
 function badgeLine(facts) {
   if (facts.badge_status !== "available") return "";
 
-  const price = Number(facts.badge_price_gbp || fixedKfkFacts.badge_price_gbp).toFixed(2);
-  return `<li><strong>Sleeve badge:</strong> An optional ${esc(facts.badge_league)} sleeve badge can be added for &pound;${price}. Select it in the product options if required. It is not included in the base kit.</li>`;
+  return `<li><strong>Sleeve badge:</strong> An optional ${esc(facts.badge_league)} sleeve badge can be added using the product options. It is not included as standard.</li>`;
 }
 
 function sizingWarningLine(facts) {
@@ -1425,6 +1424,7 @@ function insertSizingWarning(lines, facts) {
 function renderDescription(facts, branch) {
   const template = pickBranchVariant(branch, facts);
   const opening = interpolate(template.opening, facts, { titleCaseProductLabels: true });
+  const openingSecondary = interpolate(template.openingSecondary || "", facts, { titleCaseProductLabels: true });
 
   const sizeLine = `<li><strong>Sizes:</strong> ${esc(facts.visible_size_range)}.${sizeGuideSentence(facts)}</li>`;
   const kitLine = facts.product_type === "full_kit"
@@ -1451,6 +1451,7 @@ function renderDescription(facts, branch) {
 
   return [
     `<p>${opening}</p>`,
+    openingSecondary ? `<p>${openingSecondary}</p>` : "",
     "",
     "<h3>What's Included</h3>",
     "<ul>",
@@ -1557,7 +1558,9 @@ function auditDescription(html, facts, blockers, reviewFlags, resolvedBranch = n
       .find((node) => node.textContent.trim().toLowerCase() === headingText);
     return heading?.nextElementSibling?.textContent.toLowerCase() || "";
   };
-  const openingText = doc.querySelector("#root > p")?.textContent.toLowerCase() || "";
+  const openingText = [...doc.querySelectorAll("#root > p")]
+    .map((node) => node.textContent.toLowerCase())
+    .join(" ");
   const includedText = sectionText("what's included");
   const beforeOrderText = sectionText("before you order");
   const unsupported = forbiddenTerms.filter((term) => text.includes(term));
@@ -1577,8 +1580,8 @@ function auditDescription(html, facts, blockers, reviewFlags, resolvedBranch = n
     if (!text.includes("material: polyester")) {
       blockers.push("Product descriptions must identify the fixed polyester material.");
     }
-    if (facts.badge_status === "available" && (!facts.badge_league || !text.includes(facts.badge_league.toLowerCase()) || !text.includes("sleeve badge") || !text.includes("3.99"))) {
-      blockers.push("Available badge products must show the entered league badge option and £3.99 price.");
+    if (facts.badge_status === "available" && (!facts.badge_league || !text.includes(facts.badge_league.toLowerCase()) || !text.includes("sleeve badge"))) {
+      blockers.push("Available badge products must show the entered league badge option.");
     }
     if (facts.badge_status === "unavailable" && text.includes("sleeve badge")) {
       blockers.push("Unavailable badge products must not show the badge option.");
@@ -1605,8 +1608,13 @@ function auditDescription(html, facts, blockers, reviewFlags, resolvedBranch = n
     blockers.push("Shirt-only product must state that shorts and socks are not included.");
   }
 
-  if (facts.listing_configuration === "pre_applied_player" && text.includes("add a custom name")) {
-    blockers.push("Pre-applied player product must not invite customer-entered name/number personalisation.");
+  if (facts.listing_configuration === "pre_applied_player") {
+    if (text.includes("add a custom name")) {
+      blockers.push("Pre-applied player product must not invite customer-entered name/number personalisation.");
+    }
+    if (text.includes("nothing to choose")) {
+      blockers.push("Pre-applied player copy must not imply that size or badge options cannot be selected.");
+    }
   }
 
   const qaStatus = blockers.length ? "block" : reviewFlags.length ? "review" : "pass";

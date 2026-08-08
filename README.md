@@ -14,8 +14,9 @@ There is nothing to install. Open [`index.html`](./index.html) in a browser.
 1. Stay in **Product** mode for individual products.
 2. Enter only confirmed facts: product identity, contents, socks status, sizes,
    main colours and the correct print configuration.
-3. Fixed KFK facts are pre-applied: Fan version, Polyester and a £3.99
-   league-specific sleeve-badge price when a badge option is available.
+3. Fixed KFK facts are pre-applied: Fan version and Polyester. When a
+   league-specific sleeve badge is available, its price is controlled in the
+   product options rather than repeated in the description.
 4. Select the sleeve-badge availability and enter the badge league when it is
    available.
 5. For shirt-only products, the shorts-colour field is disabled and omitted
