@@ -2,7 +2,7 @@ const form = document.querySelector("#factForm");
 const bundleForm = document.querySelector("#bundleForm");
 const generateBtn = document.querySelector("#generateBtn");
 const loadSampleBtn = document.querySelector("#loadSampleBtn");
-const nextVariantBtn = document.querySelector("#nextVariantBtn");
+const clearAllBtn = document.querySelector("#clearAllBtn");
 const copyBtn = document.querySelector("#copyBtn");
 const branchBadge = document.querySelector("#branchBadge");
 const qaBadge = document.querySelector("#qaBadge");
@@ -16,9 +16,13 @@ const mainColourSocksInput = form.elements.main_colour_socks;
 const badgeStatusSelect = form.elements.badge_status;
 const badgeLeagueField = document.querySelector("#badgeLeagueField");
 const badgeLeagueInput = form.elements.badge_league;
+const badgeChampionInput = form.elements.badge_champion_status;
+const badgeChampionToggle = document.querySelector("#badgeChampionToggle");
+const badgeLeagueSuggestions = document.querySelector("#badgeLeagueSuggestions");
 const mainColourShortsField = document.querySelector("#mainColourShortsField");
 const mainColourSocksField = document.querySelector("#mainColourSocksField");
 const imageColourFileInput = document.querySelector("#imageColourFile");
+const useImageTitleBtn = document.querySelector("#useImageTitleBtn");
 const clearImageColourBtn = document.querySelector("#clearImageColourBtn");
 const imageColourWorkspace = document.querySelector("#imageColourWorkspace");
 const imageColourCanvas = document.querySelector("#imageColourCanvas");
@@ -26,10 +30,7 @@ const imageColourInstruction = document.querySelector("#imageColourInstruction")
 const imageColourStatus = document.querySelector("#imageColourStatus");
 const imageColourPalette = document.querySelector("#imageColourPalette");
 const imageColourPaletteButtons = document.querySelector("#imageColourPaletteButtons");
-const imageColourConfirm = document.querySelector("#imageColourConfirm");
-const confirmColoursGenerateBtn = document.querySelector("#confirmColoursGenerateBtn");
-const imageColourReviewNote = document.querySelector("#imageColourReviewNote");
-const imageColourConfirmationInput = form.elements.image_colour_confirmation;
+const viewMoreImageColoursBtn = document.querySelector("#viewMoreImageColoursBtn");
 const productAudienceSelect = document.querySelector("#productAudienceSelect");
 const adultAudienceOption = productAudienceSelect.querySelector('option[value="adult"]');
 const productKindSelect = document.querySelector("#productKindSelect");
@@ -62,17 +63,18 @@ let generateTimer = null;
 let activeMode = "product";
 let bundleItems = [];
 let isPrintInferredFromProductName = false;
+let isBadgeLeagueSuggestionsOpen = false;
+let activeEnhancedSelect = null;
+let tabSuggestionContext = null;
+let isApplyingTabSuggestion = false;
+const imageColourPreviewLimit = 4;
 const imageColourState = {
   objectUrl: "",
+  fileName: "",
   imageLoaded: false,
   activeTarget: "shirt",
-  suggestions: {
-    shirt: null,
-    shorts: null,
-    socks: null
-  },
   palette: [],
-  confirmed: false
+  paletteExpanded: false
 };
 
 const fixedKfkFacts = Object.freeze({
@@ -105,6 +107,20 @@ const forbiddenTerms = [
   "moisture-wicking",
   "guaranteed fit"
 ];
+const badgeLeagueOptions = [
+  "Premier League",
+  "LaLiga",
+  "Serie A",
+  "Bundesliga",
+  "Ligue 1",
+  "Eredivisie",
+  "Primeira Liga",
+  "Scottish Premiership",
+  "UEFA Champions League",
+  "UEFA Europa League",
+  "UEFA Conference League",
+  "FIFA Club World Cup"
+];
 
 function getFacts() {
   syncProductSelectionFields();
@@ -117,6 +133,9 @@ function getFacts() {
   Object.assign(facts, fixedKfkFacts);
   facts.badge_status = facts.badge_status === "available" ? "available" : "unavailable";
   facts.badge_league = facts.badge_status === "available" ? String(facts.badge_league || "").trim() : "";
+  facts.badge_champion_status = facts.badge_status === "available" && facts.badge_champion_status === "champion"
+    ? "champion"
+    : "not_champion";
 
   applyAnotherValue(facts, "kit_type");
   applyAnotherValue(facts, "sleeve_length");
@@ -165,8 +184,12 @@ function inferProductSelectionFromName() {
   const productName = productNameInput.value.trim();
   if (!productName) return;
 
-  const seasonMatch = productName.match(/\b20\d{2}\/\d{2}\b/);
-  if (seasonMatch) form.elements.season.value = seasonMatch[0];
+  const seasonMatch = productName.match(/\b(20\d{2}|2\d)\/(\d{2})\b/);
+  if (seasonMatch) {
+    form.elements.season.value = seasonMatch[1].length === 2
+      ? `20${seasonMatch[1]}/${seasonMatch[2]}`
+      : seasonMatch[0];
+  }
 
   const matchedTeam = findFootballTeam(productName);
   if (matchedTeam) form.elements.team.value = matchedTeam.name;
@@ -216,7 +239,7 @@ function inferProductSelectionFromName() {
   if (hasStandaloneKeyword(productName, "with socks")) productSocksSelect.value = "included";
   if (hasStandaloneKeyword(productName, "no socks") || hasStandaloneKeyword(productName, "without socks")) productSocksSelect.value = "unavailable";
 
-  const playerPrintMatch = productName.match(/(?:^|[^a-z])([A-Z]{2,})\s+(\d{1,2})(?=$|[^a-z0-9])/);
+  const playerPrintMatch = productName.match(/(?:^|[^a-z])([A-Z]{2,}(?:\s+[A-Z]{2,})*)\s+(\d{1,2})(?=$|[^a-z0-9])/);
   if (playerPrintMatch) {
     productPrintSelect.value = "pre_applied_player";
     productPrintName.value = playerPrintMatch[1];
@@ -293,14 +316,306 @@ function syncProductSelectionFields() {
 
   syncBadgeField();
   updateImageColourAssistantUi();
+  refreshEnhancedSelects();
 }
 
 function syncBadgeField() {
   const isAvailable = badgeStatusSelect.value === "available";
   badgeLeagueField.classList.toggle("hidden", !isAvailable);
   badgeLeagueInput.required = isAvailable;
-  if (!isAvailable) badgeLeagueInput.value = "";
+  badgeChampionToggle.disabled = !isAvailable;
+  if (!isAvailable) {
+    badgeLeagueInput.value = "";
+    setBadgeChampionStatus(false);
+    setBadgeLeagueSuggestionsOpen(false);
+  } else {
+    setBadgeChampionStatus(badgeChampionInput.value === "champion");
+  }
 }
+
+function setBadgeLeagueSuggestionsOpen(isOpen) {
+  isBadgeLeagueSuggestionsOpen = isOpen;
+  badgeLeagueInput.setAttribute("aria-expanded", String(isOpen));
+  renderBadgeLeagueSuggestions();
+}
+
+function renderBadgeLeagueSuggestions() {
+  badgeLeagueSuggestions.replaceChildren();
+  const query = String(badgeLeagueInput.dataset.tabSuggestionQuery ?? badgeLeagueInput.value).trim().toLowerCase();
+  const matches = badgeLeagueOptions.filter((league) => league.toLowerCase().includes(query));
+  const shouldShow = isBadgeLeagueSuggestionsOpen && matches.length > 0;
+  badgeLeagueSuggestions.classList.toggle("hidden", !shouldShow);
+
+  if (!shouldShow) return;
+
+  matches.forEach((league) => {
+    const option = document.createElement("button");
+    option.type = "button";
+    option.className = "badge-league-suggestion";
+    option.setAttribute("role", "option");
+    option.textContent = league;
+    option.addEventListener("mousedown", (event) => event.preventDefault());
+    option.addEventListener("click", () => {
+      badgeLeagueInput.value = league;
+      badgeLeagueInput.dispatchEvent(new Event("input", { bubbles: true }));
+      setBadgeLeagueSuggestionsOpen(false);
+    });
+    badgeLeagueSuggestions.append(option);
+  });
+}
+
+function suggestionDirection(event) {
+  const key = event.key.toLowerCase();
+  if (["arrowup", "w", "a"].includes(key)) return -1;
+  if (["arrowdown", "s", "d"].includes(key)) return 1;
+  return 0;
+}
+
+function selectBadgeLeagueSuggestion(direction, startsAtFirst = false) {
+  setBadgeLeagueSuggestionsOpen(true);
+  const choices = [...badgeLeagueSuggestions.querySelectorAll(".badge-league-suggestion")];
+  if (!choices.length) return;
+  const selectedIndex = choices.findIndex((choice) => choice.textContent === badgeLeagueInput.value);
+  const nextIndex = startsAtFirst
+    ? 0
+    : (selectedIndex + direction + choices.length) % choices.length;
+  isApplyingTabSuggestion = true;
+  choices[nextIndex].click();
+  isApplyingTabSuggestion = false;
+  badgeLeagueInput.focus();
+  setBadgeLeagueSuggestionsOpen(true);
+}
+
+function setBadgeChampionStatus(isChampion) {
+  badgeChampionInput.value = isChampion ? "champion" : "not_champion";
+  badgeChampionToggle.classList.toggle("active", isChampion);
+  badgeChampionToggle.setAttribute("aria-pressed", String(isChampion));
+  badgeChampionToggle.setAttribute("aria-label", `Champion badge: ${isChampion ? "on" : "off"}`);
+  badgeChampionToggle.title = isChampion ? "Champions badge selected" : "Mark this as a champions badge";
+}
+
+function enhanceSelects() {
+  document.querySelectorAll("#factForm select, #bundleForm select").forEach((select) => {
+    if (select.dataset.enhanced === "true") return;
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "enhanced-select";
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = "enhanced-select-input";
+    input.autocomplete = "off";
+    input.placeholder = "Type or choose…";
+    input.setAttribute("aria-autocomplete", "list");
+    input.setAttribute("aria-label", select.getAttribute("aria-label") || "Choose an option");
+    const options = document.createElement("div");
+    options.className = "enhanced-select-options hidden";
+    options.setAttribute("role", "listbox");
+
+    select.before(wrapper);
+    wrapper.append(select, input, options);
+    select.classList.add("enhanced-select-source");
+    select.dataset.enhanced = "true";
+    select.addEventListener("change", () => refreshEnhancedSelects());
+    input.addEventListener("focus", () => openEnhancedSelect(wrapper));
+    input.addEventListener("input", () => {
+      delete input.dataset.tabSuggestionQuery;
+      setEnhancedSelectValue(select, input.value);
+      renderEnhancedSelectOptions(wrapper);
+    });
+    input.addEventListener("blur", () => {
+      window.setTimeout(() => {
+        if (activeEnhancedSelect === wrapper) closeEnhancedSelects();
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+      }, 150);
+    });
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Tab") {
+        event.preventDefault();
+        tabSuggestionContext = { type: "enhanced", wrapper };
+        input.dataset.tabSuggestionQuery = input.value;
+        selectEnhancedSuggestion(wrapper, 0, true);
+        return;
+      }
+      if (tabSuggestionContext?.type === "enhanced" && tabSuggestionContext.wrapper === wrapper) {
+        const direction = suggestionDirection(event);
+        if (direction) {
+          event.preventDefault();
+          selectEnhancedSuggestion(wrapper, direction);
+          return;
+        }
+      }
+      if (event.key !== "Enter" && event.key !== "Escape") return;
+      event.preventDefault();
+      if (event.key === "Enter") select.dispatchEvent(new Event("change", { bubbles: true }));
+      closeEnhancedSelects();
+    });
+  });
+
+  refreshEnhancedSelects();
+}
+
+function refreshEnhancedSelects() {
+  document.querySelectorAll(".enhanced-select").forEach((wrapper) => {
+    const select = wrapper.querySelector("select");
+    const input = wrapper.querySelector(".enhanced-select-input");
+    const selected = select.selectedOptions[0];
+
+    wrapper.classList.toggle("hidden", select.classList.contains("hidden"));
+    input.disabled = select.disabled;
+    if (document.activeElement !== input) input.value = selected?.textContent.trim() || "";
+    renderEnhancedSelectOptions(wrapper);
+  });
+}
+
+function setEnhancedSelectValue(select, text) {
+  const value = String(text || "").trim();
+  const matched = [...select.options].find((option) => (
+    option.dataset.customOption !== "true"
+    && (option.textContent.trim().toLowerCase() === value.toLowerCase()
+      || option.value.toLowerCase() === value.toLowerCase())
+  ));
+  const customOption = [...select.options].find((option) => option.dataset.customOption === "true");
+
+  if (matched) {
+    select.value = matched.value;
+    if (customOption) customOption.remove();
+    return;
+  }
+
+  const nextCustomOption = customOption || document.createElement("option");
+  nextCustomOption.dataset.customOption = "true";
+  nextCustomOption.value = value;
+  nextCustomOption.textContent = value;
+  if (!customOption) select.append(nextCustomOption);
+  select.value = value;
+}
+
+function renderEnhancedSelectOptions(wrapper) {
+  const select = wrapper.querySelector("select");
+  const input = wrapper.querySelector(".enhanced-select-input");
+  const options = wrapper.querySelector(".enhanced-select-options");
+  const matches = [...select.options].filter((option) => (
+    option.dataset.customOption !== "true"
+  ));
+
+  options.replaceChildren();
+  if (!matches.length) {
+    options.classList.add("hidden");
+    return;
+  }
+
+  matches.forEach((option) => {
+    const choice = document.createElement("button");
+    choice.type = "button";
+    choice.className = "enhanced-select-option";
+    choice.setAttribute("role", "option");
+    choice.textContent = option.textContent.trim();
+    choice.disabled = option.disabled;
+    choice.classList.toggle("selected", option.selected);
+    choice.setAttribute("aria-selected", String(option.selected));
+    choice.addEventListener("mousedown", (event) => event.preventDefault());
+    choice.addEventListener("click", () => {
+      if (option.disabled) return;
+      select.value = option.value;
+      input.value = option.textContent.trim();
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+      closeEnhancedSelects();
+    });
+    options.append(choice);
+  });
+
+  options.classList.toggle("hidden", activeEnhancedSelect !== wrapper);
+}
+
+function selectEnhancedSuggestion(wrapper, direction, startsAtFirst = false) {
+  openEnhancedSelect(wrapper);
+  const input = wrapper.querySelector(".enhanced-select-input");
+  const choices = [...wrapper.querySelectorAll(".enhanced-select-option:not(:disabled)")];
+  if (!choices.length) return;
+  const selectedIndex = choices.findIndex((choice) => choice.classList.contains("selected"));
+  const nextIndex = startsAtFirst
+    ? 0
+    : (selectedIndex + direction + choices.length) % choices.length;
+  isApplyingTabSuggestion = true;
+  choices[nextIndex].click();
+  isApplyingTabSuggestion = false;
+  input.focus();
+  openEnhancedSelect(wrapper);
+}
+
+function openEnhancedSelect(wrapper) {
+  closeEnhancedSelects();
+  activeEnhancedSelect = wrapper;
+  renderEnhancedSelectOptions(wrapper);
+}
+
+function closeEnhancedSelects() {
+  document.querySelectorAll(".enhanced-select-options").forEach((options) => options.classList.add("hidden"));
+  activeEnhancedSelect = null;
+}
+
+document.addEventListener("click", (event) => {
+  if (!event.target.closest(".enhanced-select")) closeEnhancedSelects();
+});
+
+function visibleTextFields() {
+  return [...document.querySelectorAll("#factForm input, #factForm textarea, #bundleForm input, #bundleForm textarea")]
+    .filter((field) => field.type !== "hidden" && field.type !== "file" && !field.disabled)
+    .filter((field) => !field.classList.contains("enhanced-select-source"))
+    .filter((field) => !field.closest(".hidden") && field.getClientRects().length > 0);
+}
+
+function moveTextFieldFocus(step) {
+  const fields = visibleTextFields();
+  const index = fields.indexOf(document.activeElement);
+  if (index < 0 || !fields.length) return;
+  const nextIndex = (index + step + fields.length) % fields.length;
+  fields[nextIndex].focus();
+  if (typeof fields[nextIndex].select === "function") fields[nextIndex].select();
+}
+
+document.addEventListener("keydown", (event) => {
+  const isTextField = event.target.matches("input:not([type=hidden]):not([type=file]), textarea");
+  if (!isTextField) return;
+
+  if (event.key === "Tab") {
+    event.preventDefault();
+    return;
+  }
+
+  if (tabSuggestionContext) return;
+
+  const directions = {
+    ArrowLeft: -1,
+    ArrowUp: -1,
+    ArrowRight: 1,
+    ArrowDown: 1,
+    a: -1,
+    w: -1,
+    d: 1,
+    s: 1
+  };
+  const key = event.ctrlKey ? event.key.toLowerCase() : event.key;
+  const usesArrow = key.startsWith("Arrow");
+  const usesCtrlWASD = event.ctrlKey && ["a", "w", "s", "d"].includes(key);
+  if (!usesArrow && !usesCtrlWASD) return;
+
+  event.preventDefault();
+  moveTextFieldFocus(directions[key]);
+});
+
+document.addEventListener("keyup", (event) => {
+  if (event.key !== "Tab") return;
+  if (tabSuggestionContext?.type === "enhanced") {
+    delete tabSuggestionContext.wrapper.querySelector(".enhanced-select-input").dataset.tabSuggestionQuery;
+    renderEnhancedSelectOptions(tabSuggestionContext.wrapper);
+  }
+  if (tabSuggestionContext?.type === "badge") {
+    delete badgeLeagueInput.dataset.tabSuggestionQuery;
+    renderBadgeLeagueSuggestions();
+  }
+  tabSuggestionContext = null;
+});
 
 const imageColourReference = [
   { label: "White", rgb: [255, 255, 255] },
@@ -343,14 +658,6 @@ function imageColourTarget(key) {
 
 function imageColourRow(key) {
   return document.querySelector(`[data-colour-target="${key}"]`);
-}
-
-function imageColourSuggestionValue(key) {
-  return document.querySelector(`#${key}ColourSuggestion`);
-}
-
-function imageColourUseButton(key) {
-  return document.querySelector(`[data-use-colour-suggestion="${key}"]`);
 }
 
 function rgbToHex(rgb) {
@@ -470,41 +777,45 @@ function buildImageColourPalette() {
     }));
 }
 
-function updateImageColourConfirmation(status) {
-  imageColourState.confirmed = status === "confirmed";
-  imageColourConfirmationInput.value = status;
-  imageColourConfirm.checked = imageColourState.confirmed;
-}
-
-function markImageColoursForReview() {
-  if (!imageColourState.imageLoaded) return;
-  updateImageColourConfirmation("pending_review");
-  updateImageColourAssistantUi();
-}
-
 function setActiveImageColourTarget(key) {
   if (!imageColourTarget(key)) return;
   imageColourState.activeTarget = key;
-  imageColourInstruction.textContent = `Click the main ${key} colour in the image. The result will be a suggestion for review.`;
+  imageColourInstruction.textContent = `Click the main ${key} colour in the image to apply it to the selected field.`;
   updateImageColourAssistantUi();
 }
 
 function setImageColourSuggestion(key, suggestion) {
-  if (!imageColourTarget(key) || !suggestion) return;
-  imageColourState.suggestions[key] = suggestion;
-  markImageColoursForReview();
+  const target = imageColourTarget(key);
+  if (!target || !suggestion) return;
+  target.input.value = appendImageColour(target.input.value, suggestion.label);
+  target.input.dispatchEvent(new Event("input", { bubbles: true }));
   updateImageColourAssistantUi();
+}
+
+function appendImageColour(currentValue, nextColour) {
+  const current = String(currentValue || "").trim();
+  const colour = String(nextColour || "").trim();
+  if (!colour) return current;
+
+  const escapedColour = colour.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const alreadyIncluded = new RegExp(`(?:^|\\s)${escapedColour}(?=$|\\s)`, "i").test(current);
+  return alreadyIncluded ? current : [current, colour].filter(Boolean).join(" ");
 }
 
 function renderImageColourPalette() {
   imageColourPaletteButtons.replaceChildren();
   imageColourPalette.classList.toggle("hidden", !imageColourState.palette.length);
+  const hasAdditionalColours = imageColourState.palette.length > imageColourPreviewLimit;
+  const visibleColours = imageColourState.palette.slice(
+    0,
+    imageColourState.paletteExpanded ? imageColourState.palette.length : imageColourPreviewLimit
+  );
 
-  imageColourState.palette.forEach((colour) => {
+  visibleColours.forEach((colour) => {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "palette-button";
-    button.title = `Use ${colour.label} as a suggestion for the selected garment`;
+    button.title = `Apply ${colour.label} to the selected garment colour`;
 
     const swatch = document.createElement("span");
     swatch.className = "palette-swatch";
@@ -516,14 +827,19 @@ function renderImageColourPalette() {
     button.addEventListener("click", () => setImageColourSuggestion(imageColourState.activeTarget, colour));
     imageColourPaletteButtons.append(button);
   });
+
+  viewMoreImageColoursBtn.classList.toggle("hidden", !hasAdditionalColours);
+  viewMoreImageColoursBtn.setAttribute("aria-expanded", String(imageColourState.paletteExpanded));
+  viewMoreImageColoursBtn.textContent = imageColourState.paletteExpanded
+    ? "Show less"
+    : `View more (${imageColourState.palette.length - imageColourPreviewLimit})`;
 }
 
 function updateImageColourAssistantUi() {
   const hasImage = imageColourState.imageLoaded;
   imageColourWorkspace.classList.toggle("hidden", !hasImage);
+  useImageTitleBtn.disabled = !imageColourState.fileName;
   clearImageColourBtn.disabled = !hasImage;
-  imageColourConfirm.disabled = !hasImage;
-  confirmColoursGenerateBtn.disabled = !hasImage || imageColourState.confirmed || !imageColourConfirm.checked;
 
   const targets = currentImageColourTargets();
   if (!targets.some((target) => target.key === imageColourState.activeTarget)) {
@@ -532,29 +848,17 @@ function updateImageColourAssistantUi() {
 
   ["shirt", "shorts", "socks"].forEach((key) => {
     const row = imageColourRow(key);
-    const visible = hasImage && targets.some((target) => target.key === key);
-    const suggestion = imageColourState.suggestions[key];
+    const visible = targets.some((target) => target.key === key);
     row.classList.toggle("hidden", !visible);
     row.classList.toggle("active", visible && imageColourState.activeTarget === key);
-    imageColourSuggestionValue(key).textContent = suggestion
-      ? `${suggestion.label} (${rgbToHex(suggestion.rgb)})`
-      : "Not sampled";
-    imageColourUseButton(key).disabled = !visible || !suggestion;
   });
 
   if (!hasImage) {
     setBadge(imageColourStatus, "Not used", "neutral");
-    imageColourReviewNote.textContent = "Upload an image to begin. You can also enter colours manually.";
     return;
   }
 
-  if (imageColourState.confirmed) {
-    setBadge(imageColourStatus, "Confirmed", "pass");
-    imageColourReviewNote.textContent = "Colours confirmed from the current editable fields. Generate uses these final values.";
-  } else {
-    setBadge(imageColourStatus, "Review needed", "review");
-    imageColourReviewNote.textContent = "Review or edit the colour fields, tick the confirmation box, then use Confirm colours & Generate. Clear the image to return to manual generation.";
-  }
+  setBadge(imageColourStatus, "Ready", "pass");
 
   renderImageColourPalette();
 }
@@ -562,11 +866,11 @@ function updateImageColourAssistantUi() {
 function resetImageColourAssistant({ clearFile = false } = {}) {
   if (imageColourState.objectUrl) URL.revokeObjectURL(imageColourState.objectUrl);
   imageColourState.objectUrl = "";
+  imageColourState.fileName = "";
   imageColourState.imageLoaded = false;
   imageColourState.activeTarget = "shirt";
-  imageColourState.suggestions = { shirt: null, shorts: null, socks: null };
   imageColourState.palette = [];
-  updateImageColourConfirmation("not_used");
+  imageColourState.paletteExpanded = false;
   imageColourCanvas.width = 1;
   imageColourCanvas.height = 1;
   imageColourCanvas.getContext("2d")?.clearRect(0, 0, 1, 1);
@@ -592,30 +896,29 @@ function handleImageColourFileChange() {
   if (!file) return;
 
   if (!file.type.startsWith("image/")) {
-    imageColourReviewNote.textContent = "Please choose an image file. The image colour assistant does not upload files.";
     return;
   }
 
   const objectUrl = URL.createObjectURL(file);
   imageColourState.objectUrl = objectUrl;
+  imageColourState.fileName = file.name;
+  updateImageColourAssistantUi();
   const image = new Image();
   image.onload = () => {
     if (!drawImageForColourAssistant(image)) {
       resetImageColourAssistant({ clearFile: true });
-      imageColourReviewNote.textContent = "This image could not be prepared for colour sampling. Enter the colours manually.";
       return;
     }
 
     imageColourState.imageLoaded = true;
     imageColourState.activeTarget = currentImageColourTargets()[0]?.key || "shirt";
     imageColourState.palette = buildImageColourPalette();
-    updateImageColourConfirmation("pending_review");
-    imageColourInstruction.textContent = `Click the main ${imageColourState.activeTarget} colour in the image. The result will be a suggestion for review.`;
+    imageColourState.paletteExpanded = false;
+    imageColourInstruction.textContent = `Click the main ${imageColourState.activeTarget} colour in the image to apply it to the selected field.`;
     updateImageColourAssistantUi();
   };
   image.onerror = () => {
     resetImageColourAssistant({ clearFile: true });
-    imageColourReviewNote.textContent = "This image could not be read. Enter the colours manually.";
   };
   image.src = objectUrl;
 }
@@ -627,21 +930,6 @@ function handleImageColourCanvasClick(event) {
   const y = ((event.clientY - bounds.top) / bounds.height) * imageColourCanvas.height;
   const suggestion = averageCanvasColour(x, y);
   if (suggestion) setImageColourSuggestion(imageColourState.activeTarget, suggestion);
-}
-
-function useImageColourSuggestion(key) {
-  const target = imageColourTarget(key);
-  const suggestion = imageColourState.suggestions[key];
-  if (!target || !suggestion) return;
-  target.input.value = suggestion.label;
-  target.input.dispatchEvent(new Event("input", { bubbles: true }));
-}
-
-function confirmImageColoursAndGenerate() {
-  if (!imageColourState.imageLoaded || !imageColourConfirm.checked) return;
-  updateImageColourConfirmation("confirmed");
-  updateImageColourAssistantUi();
-  scheduleGenerate();
 }
 
 function syncProductControlsFromFacts(facts) {
@@ -659,6 +947,7 @@ function syncProductControlsFromFacts(facts) {
   mainColourSocksInput.value = facts.main_colour_socks || "";
   badgeStatusSelect.value = facts.badge_status === "available" ? "available" : "unavailable";
   badgeLeagueInput.value = facts.badge_league || "";
+  setBadgeChampionStatus(facts.badge_champion_status === "champion");
   syncProductSelectionFields();
 }
 
@@ -838,6 +1127,42 @@ function syncBundleItemControls() {
     bundlePrintName.value = "";
     bundlePrintNumber.value = "";
   }
+
+  refreshEnhancedSelects();
+}
+
+function productTitleFromImageName(fileName) {
+  const stem = String(fileName || "").replace(/\.[^.]+$/, "");
+  const cleaned = stem
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/^kfk\b\s*/i, "")
+    .trim();
+  const seasonMatch = cleaned.match(/\b(20\d{2}|2\d)\s*[\/._-]?\s*(\d{2})\b/);
+  const socksMatch = cleaned.match(/\bwith\s+socks\b/i);
+
+  if (!seasonMatch || seasonMatch.index === undefined) {
+    const titleWithoutSeason = socksMatch
+      ? cleaned.slice(0, socksMatch.index).trim()
+      : cleaned;
+    return socksMatch ? `${titleWithoutSeason} (With Socks)` : titleWithoutSeason;
+  }
+
+  const seasonEnd = seasonMatch.index + seasonMatch[0].length;
+  const title = `${cleaned.slice(0, seasonMatch.index)}${seasonMatch[1]}/${seasonMatch[2]}`.trim();
+  const afterSeason = cleaned.slice(seasonEnd);
+  const playerPrintMatch = afterSeason.match(/\b([A-Z]{2,}(?:\s+[A-Z]{2,})*)\s+(\d{1,2})\b/);
+  const playerPrint = playerPrintMatch ? ` ${playerPrintMatch[1]} ${playerPrintMatch[2]}` : "";
+  return /\bwith\s+socks\b/i.test(afterSeason)
+    ? `${title}${playerPrint} (With Socks)`
+    : `${title}${playerPrint}`;
+}
+
+function useImageTitle() {
+  const title = productTitleFromImageName(imageColourState.fileName || imageColourFileInput.files?.[0]?.name);
+  if (!title) return;
+  productNameInput.value = title;
+  productNameInput.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
 function usesBundleSocks() {
@@ -948,6 +1273,14 @@ function displayDesignDetail(value) {
     .trim();
 }
 
+function descriptionProductName(value) {
+  return String(value || "")
+    .replace(/\s*\(\s*with\s+socks?\s*\)/gi, "")
+    .replace(/\s+with\s+socks?\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function pick(list, facts, salt = 0) {
   const seed = [
     facts.product_name,
@@ -992,7 +1325,7 @@ function interpolate(template, facts, { titleCaseProductLabels = false } = {}) {
   const productItem = titleCaseProductLabels ? titleCasePhrase(productItemLabel(facts)) : productItemLabel(facts);
 
   return template
-    .replaceAll("{product_name}", esc(facts.product_name))
+    .replaceAll("{product_name}", esc(descriptionProductName(facts.product_name)))
     .replaceAll("{team}", esc(facts.team))
     .replaceAll("{season}", esc(facts.season))
     .replaceAll("{kit_type_label}", esc(titleCaseToken(facts.kit_type)))
@@ -1334,10 +1667,6 @@ function validateFacts(facts, branch) {
     reviewFlags.push("Socks are included but the socks colour is blank; confirm it or leave it omitted if it cannot be verified.");
   }
 
-  if (imageColourState.imageLoaded && facts.image_colour_confirmation !== "confirmed") {
-    blockers.push("Image colour suggestions are awaiting team confirmation. Review the editable colour fields and click Confirm colours & Generate, or clear the image before generating.");
-  }
-
   return { blockers, reviewFlags };
 }
 
@@ -1404,7 +1733,8 @@ function materialLine(facts) {
 function badgeLine(facts) {
   if (facts.badge_status !== "available") return "";
 
-  return `<li><strong>Sleeve badge:</strong> An optional ${esc(facts.badge_league)} sleeve badge can be added using the product options. It is not included as standard.</li>`;
+  const badgeLabel = `${facts.badge_league}${facts.badge_champion_status === "champion" ? " Champions" : ""}`;
+  return `<li><strong>Sleeve badge:</strong> An optional ${esc(badgeLabel)} sleeve badge can be added using the product options. It is not included as standard.</li>`;
 }
 
 function sizingWarningLine(facts) {
@@ -1583,6 +1913,9 @@ function auditDescription(html, facts, blockers, reviewFlags, resolvedBranch = n
     if (facts.badge_status === "available" && (!facts.badge_league || !text.includes(facts.badge_league.toLowerCase()) || !text.includes("sleeve badge"))) {
       blockers.push("Available badge products must show the entered league badge option.");
     }
+    if (facts.badge_champion_status === "champion" && !text.includes("champions sleeve badge")) {
+      blockers.push("Champion badge products must identify the Champions sleeve badge option.");
+    }
     if (facts.badge_status === "unavailable" && text.includes("sleeve badge")) {
       blockers.push("Unavailable badge products must not show the badge option.");
     }
@@ -1662,6 +1995,44 @@ function toYamlish(value, indent = 0) {
   return String(value);
 }
 
+function formatAuditOutput(audit) {
+  if (audit.qa_status !== "block") return toYamlish(audit);
+
+  const errors = audit.error ? [audit.error] : (audit.blockers || []);
+  const visibleErrors = errors.slice(0, 4);
+  const remainingCount = Math.max(0, errors.length - visibleErrors.length);
+  const lines = ["qa_status: block"];
+
+  if (visibleErrors.length) {
+    lines.push("errors:", ...visibleErrors.map((error) => `- ${shortAuditError(error)}`));
+  }
+  if (remainingCount) lines.push(`- +${remainingCount} more issue${remainingCount === 1 ? "" : "s"}`);
+
+  return lines.join("\n");
+}
+
+function shortAuditError(error) {
+  const requiredField = String(error).match(/^([a-z_]+) is required and cannot be unknown\.$/i);
+  if (requiredField) {
+    const labels = {
+      product_name: "Product name",
+      bundle_name: "Bundle name",
+      team: "Team",
+      season: "Season"
+    };
+    return `${labels[requiredField[1]] || requiredField[1].replaceAll("_", " ")} is required.`;
+  }
+
+  if (error === "No approved description branch matches these facts.") {
+    return "Choose a valid product configuration.";
+  }
+  if (error === "Bundle descriptions need at least two included items.") {
+    return "Add at least two bundle items.";
+  }
+
+  return String(error);
+}
+
 function setBadge(element, text, status) {
   element.textContent = text;
   element.className = `badge ${status}`;
@@ -1695,7 +2066,7 @@ function generate() {
 
   setBadge(branchBadge, branch ? templateLibrary.branchLabels[branch] : "No approved branch", branch ? "pass" : "block");
   setBadge(qaBadge, audit.qa_status, audit.qa_status);
-  auditOutput.textContent = toYamlish(audit);
+  auditOutput.textContent = formatAuditOutput(audit);
 }
 
 function generateBundle() {
@@ -1721,7 +2092,7 @@ function generateBundle() {
   const bundleLabel = templateLibrary.bundle.branchLabels[bundleBranch] || templateLibrary.bundle.label;
   setBadge(branchBadge, bundleLabel, validation.blockers.length ? "block" : "pass");
   setBadge(qaBadge, audit.qa_status, audit.qa_status);
-  auditOutput.textContent = toYamlish(audit);
+  auditOutput.textContent = formatAuditOutput(audit);
 }
 
 function scheduleGenerate({ advanceVariant = false } = {}) {
@@ -1743,7 +2114,7 @@ function scheduleGenerate({ advanceVariant = false } = {}) {
       preview.className = "description-preview empty";
       preview.textContent = `ERROR: ${message}`;
       htmlOutput.value = "";
-      auditOutput.textContent = toYamlish({
+      auditOutput.textContent = formatAuditOutput({
         qa_status: "block",
         error: message,
         generated_at: new Date().toISOString()
@@ -1810,6 +2181,45 @@ function loadBundleSample() {
   generate();
 }
 
+function clearAll() {
+  if (generateTimer) {
+    window.clearTimeout(generateTimer);
+    generateTimer = null;
+  }
+
+  [form, bundleForm].forEach((currentForm) => {
+    currentForm.querySelectorAll('input[type="text"], textarea').forEach((field) => {
+      field.value = "";
+    });
+    currentForm.querySelectorAll("select").forEach((select) => setEnhancedSelectValue(select, ""));
+    currentForm.querySelectorAll('input[type="hidden"]').forEach((field) => {
+      field.value = "";
+    });
+  });
+
+  bundleItems = [];
+  isPrintInferredFromProductName = false;
+  variantOffset = 0;
+  tabSuggestionContext = null;
+  closeEnhancedSelects();
+  setBadgeLeagueSuggestionsOpen(false);
+  setBadgeChampionStatus(false);
+  resetImageColourAssistant({ clearFile: true });
+  renderBundleItemsList();
+  syncProductSelectionFields();
+  syncBundleItemControls();
+  refreshEnhancedSelects();
+
+  generateBtn.disabled = false;
+  generateBtn.textContent = "Generate";
+  setBadge(branchBadge, activeMode === "bundle" ? "Bundle mode" : "No branch yet", "neutral");
+  setBadge(qaBadge, "not run", "neutral");
+  preview.className = "description-preview empty";
+  preview.textContent = "Generate a description to preview it here.";
+  htmlOutput.value = "";
+  auditOutput.textContent = "qa_status: not_run";
+}
+
 function syncAnotherInputs() {
   document.querySelectorAll("#factForm select, #bundleForm select").forEach((select) => {
     const input = select.form.elements[`${select.name}_another`];
@@ -1863,39 +2273,57 @@ document.querySelectorAll(".mode-tab").forEach((button) => {
 
 generateBtn.addEventListener("click", () => scheduleGenerate({ advanceVariant: true }));
 loadSampleBtn.addEventListener("click", loadSample);
-nextVariantBtn.addEventListener("click", () => {
-  scheduleGenerate({ advanceVariant: true });
-});
+clearAllBtn.addEventListener("click", clearAll);
 imageColourFileInput.addEventListener("change", handleImageColourFileChange);
+useImageTitleBtn.addEventListener("click", useImageTitle);
 clearImageColourBtn.addEventListener("click", () => resetImageColourAssistant({ clearFile: true }));
 imageColourCanvas.addEventListener("click", handleImageColourCanvasClick);
-document.querySelectorAll("[data-colour-target-select]").forEach((button) => {
-  button.addEventListener("click", () => setActiveImageColourTarget(button.dataset.colourTargetSelect));
+document.querySelectorAll("[data-colour-target-select]").forEach((input) => {
+  const selectTarget = () => setActiveImageColourTarget(input.dataset.colourTargetSelect);
+  input.addEventListener("click", selectTarget);
+  input.addEventListener("focus", selectTarget);
 });
-document.querySelectorAll("[data-use-colour-suggestion]").forEach((button) => {
-  button.addEventListener("click", () => useImageColourSuggestion(button.dataset.useColourSuggestion));
+viewMoreImageColoursBtn.addEventListener("click", () => {
+  imageColourState.paletteExpanded = !imageColourState.paletteExpanded;
+  renderImageColourPalette();
 });
-imageColourConfirm.addEventListener("change", () => {
-  if (!imageColourState.imageLoaded) return;
-  const isChecked = imageColourConfirm.checked;
-  imageColourState.confirmed = false;
-  imageColourConfirmationInput.value = "pending_review";
-  imageColourConfirm.checked = isChecked;
-  updateImageColourAssistantUi();
-});
-confirmColoursGenerateBtn.addEventListener("click", confirmImageColoursAndGenerate);
 productNameInput.addEventListener("input", () => {
   inferProductSelectionFromName();
-  markImageColoursForReview();
   variantOffset = 0;
   scheduleGenerate();
 });
 [mainColourShirtInput, mainColourShortsInput, mainColourSocksInput, badgeLeagueInput].forEach((field) => {
   field.addEventListener("input", () => {
-    if (field !== badgeLeagueInput) markImageColoursForReview();
+    if (field === badgeLeagueInput) {
+      if (tabSuggestionContext?.type !== "badge") delete badgeLeagueInput.dataset.tabSuggestionQuery;
+      renderBadgeLeagueSuggestions();
+    }
+    if (isApplyingTabSuggestion) return;
     variantOffset = 0;
     scheduleGenerate();
   });
+});
+badgeLeagueInput.addEventListener("focus", () => setBadgeLeagueSuggestionsOpen(true));
+badgeLeagueInput.addEventListener("blur", () => {
+  window.setTimeout(() => setBadgeLeagueSuggestionsOpen(false), 150);
+});
+badgeLeagueInput.addEventListener("keydown", (event) => {
+  if (event.key === "Tab") {
+    event.preventDefault();
+    tabSuggestionContext = { type: "badge" };
+    badgeLeagueInput.dataset.tabSuggestionQuery = badgeLeagueInput.value;
+    selectBadgeLeagueSuggestion(0, true);
+    return;
+  }
+  if (tabSuggestionContext?.type === "badge") {
+    const direction = suggestionDirection(event);
+    if (direction) {
+      event.preventDefault();
+      selectBadgeLeagueSuggestion(direction);
+      return;
+    }
+  }
+  if (event.key === "Escape") setBadgeLeagueSuggestionsOpen(false);
 });
 productOtherKitType.addEventListener("input", () => {
   syncProductSelectionFields();
@@ -1918,10 +2346,16 @@ productOtherKitType.addEventListener("input", () => {
   field.addEventListener("change", () => {
     if (field === productPrintSelect) isPrintInferredFromProductName = false;
     syncProductSelectionFields();
-    markImageColoursForReview();
+    if (isApplyingTabSuggestion) return;
     variantOffset = 0;
     scheduleGenerate();
   });
+});
+badgeChampionToggle.addEventListener("click", () => {
+  if (badgeChampionToggle.disabled) return;
+  setBadgeChampionStatus(badgeChampionInput.value !== "champion");
+  variantOffset = 0;
+  scheduleGenerate();
 });
 form.querySelectorAll("select").forEach((select) => {
   select.addEventListener("change", () => {
@@ -1947,6 +2381,7 @@ bundleItemAnother.addEventListener("keydown", (event) => {
   addSelectedBundleItem();
 });
 
+enhanceSelects();
 loadSample();
 syncProductTypeDefaults();
 syncAnotherInputs();
