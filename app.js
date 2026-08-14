@@ -1382,6 +1382,7 @@ function interpolate(template, facts, { titleCaseProductLabels = false } = {}) {
     .replaceAll("{sock_phrase}", facts.socks_status === "included" ? " and socks" : "")
     .replaceAll("{player_name}", esc(displayName(facts.pre_applied_name)))
     .replaceAll("{player_number}", esc(facts.pre_applied_number))
+    .replaceAll("{visible_size_range}", esc(facts.visible_size_range))
     .replaceAll("{main_colours_opening_intro}", esc(mainColoursOpeningIntro(facts)))
     .replaceAll("{main_shirt_colour}", esc(sentenceStart(facts.main_colour_shirt)))
     .replaceAll("{bundle_name}", esc(facts.bundle_name))
@@ -1699,6 +1700,12 @@ function validateFacts(facts, branch) {
 
   if (!branch) {
     blockers.push("No approved description branch matches these facts.");
+  } else {
+    const variants = templateLibrary.branches[branch]?.variants || [];
+    const basePlanCount = variants.filter((variant) => !variant.requiresColours).length;
+    if (basePlanCount < 7 || variants.length < 8) {
+      blockers.push("This description branch must provide seven base content plans and one conditional visual plan.");
+    }
   }
 
   if (facts.size_guide_tab_status !== "confirmed_present") {
@@ -1794,11 +1801,38 @@ function sizingWarningLine(facts) {
   return `<li>${esc(pick(pool, facts, 7))}</li>`;
 }
 
-function insertSizingWarning(lines, facts) {
+function insertSizingWarning(lines, facts, placement = "after_first") {
   const sizingLine = sizingWarningLine(facts);
   if (!sizingLine) return lines;
   if (!lines.length) return [sizingLine];
+  if (placement === "first") return [sizingLine, ...lines];
+  if (placement === "last") return [...lines, sizingLine];
   return [lines[0], sizingLine, ...lines.slice(1)];
+}
+
+function orderedProductDetails(facts, template, keyDetail) {
+  const detailLines = {
+    version: "<li><strong>Version:</strong> Fan version.</li>",
+    kit: facts.product_type === "full_kit"
+      ? `<li><strong>Kit type:</strong> ${esc(titleCaseToken(facts.kit_type))} kit.</li>`
+      : `<li><strong>Product type:</strong> ${esc(titleCaseToken(facts.kit_type))} ${esc(productItemLabel(facts))}.</li>`,
+    colours: mainColoursLine(facts),
+    size: `<li><strong>Sizes:</strong> ${esc(facts.visible_size_range)}.${sizeGuideSentence(facts)}</li>`,
+    sleeve: sleeveLengthLabel(facts) ? `<li><strong>Sleeve length:</strong> ${esc(sleeveLengthLabel(facts))}.</li>` : "",
+    material: materialLine(facts),
+    key: template.detailPlacement === "details" ? keyDetail : ""
+  };
+  const orders = {
+    standard: ["version", "kit", "colours", "size", "sleeve", "material", "key"],
+    key_first: ["key", "version", "kit", "colours", "size", "sleeve", "material"],
+    identity: ["kit", "version", "sleeve", "colours", "size", "material", "key"],
+    sleeve_first: ["sleeve", "kit", "version", "colours", "size", "material", "key"],
+    size_first: ["size", "kit", "sleeve", "version", "colours", "material", "key"],
+    kit_first: ["kit", "version", "key", "sleeve", "size", "colours", "material"],
+    colours_first: ["colours", "kit", "version", "size", "sleeve", "material", "key"]
+  };
+  const detailOrder = orders[template.detailsOrder] || orders.standard;
+  return detailOrder.map((key) => detailLines[key]).filter(Boolean);
 }
 
 function renderDescription(facts, branch) {
@@ -1807,28 +1841,23 @@ function renderDescription(facts, branch) {
   const opening = interpolate(template.opening, facts, { titleCaseProductLabels: true });
   const openingSecondary = interpolate(template.openingSecondary || "", facts, { titleCaseProductLabels: true });
 
-  const sizeLine = `<li><strong>Sizes:</strong> ${esc(facts.visible_size_range)}.${sizeGuideSentence(facts)}</li>`;
-  const kitLine = facts.product_type === "full_kit"
-    ? `<li><strong>Kit type:</strong> ${esc(titleCaseToken(facts.kit_type))} kit.</li>`
-    : `<li><strong>Product type:</strong> ${esc(titleCaseToken(facts.kit_type))} ${esc(productItemLabel(facts))}.</li>`;
-  const sleeveLabel = sleeveLengthLabel(facts);
-  const sleeveLine = sleeveLabel ? `<li><strong>Sleeve length:</strong> ${esc(sleeveLabel)}.</li>` : "";
+  const keyDetail = interpolate(template.keyDetail, facts);
   const optionLines = [
-    interpolate(template.keyDetail, facts),
+    template.detailPlacement === "options" ? keyDetail : "",
     badgeLine(facts)
   ].filter(Boolean);
   const beforeOrderLines = template.beforeOrder
     .map((line) => interpolate(line, facts))
     .filter(Boolean);
-  const beforeOrder = insertSizingWarning(beforeOrderLines, facts).join("\n");
-  const productDetails = [
-    "<li><strong>Version:</strong> Fan version.</li>",
-    kitLine,
-    mainColoursLine(facts),
-    sizeLine,
-    sleeveLine,
-    materialLine(facts)
-  ].filter(Boolean);
+  const beforeOrder = insertSizingWarning(beforeOrderLines, facts, template.sizingPlacement).join("\n");
+  const productDetails = orderedProductDetails(facts, template, keyDetail);
+  const optionsSection = optionLines.length ? [
+    "",
+    `<h3>${headings.options}</h3>`,
+    "<ul>",
+    optionLines.join("\n"),
+    "</ul>"
+  ] : [];
 
   return [
     `<p>${opening}</p>`,
@@ -1843,11 +1872,7 @@ function renderDescription(facts, branch) {
     "<ul>",
     productDetails.join("\n"),
     "</ul>",
-    "",
-    `<h3>${headings.options}</h3>`,
-    "<ul>",
-    optionLines.join("\n"),
-    "</ul>",
+    ...optionsSection,
     "",
     `<h3>${headings.before}</h3>`,
     "<ul>",
@@ -1925,7 +1950,7 @@ function auditDescription(html, facts, blockers, reviewFlags, resolvedBranch = n
       review_flags: reviewFlags,
       recommended_actions: recommendedActions(qaStatus, blockers, reviewFlags),
       generated_at: new Date().toISOString(),
-      generator_version: "test_project_rule_builder_0.3.0"
+      generator_version: "test_project_rule_builder_0.4.0"
     };
   }
 
@@ -1950,9 +1975,12 @@ function auditDescription(html, facts, blockers, reviewFlags, resolvedBranch = n
     .map((node) => node.textContent.toLowerCase())
     .join(" ");
   const includedText = sectionText("included");
+  const detailsText = sectionText("details");
+  const optionsText = sectionText("options");
   const beforeOrderText = sectionText("before");
   const productHeadingTexts = [...doc.querySelectorAll("#root h3")]
     .map((node) => node.textContent.trim());
+  const hasOptionsHeading = productHeadingTexts.some((heading) => headingAliases.options.includes(heading.toLowerCase()));
   const unsupported = forbiddenTerms.filter((term) => text.includes(term));
 
   if (badTags.length) {
@@ -1965,8 +1993,10 @@ function auditDescription(html, facts, blockers, reviewFlags, resolvedBranch = n
 
   if (facts.product_type !== "bundle") {
     const hasHeadingFamily = Object.values(productHeadingFamilies).some((family) => {
-      const expected = [family.included, family.details, family.options, family.before];
-      return expected.every((heading) => productHeadingTexts.includes(heading));
+      const coreHeadings = [family.included, family.details, family.before];
+      const optionHeadingIsPresent = productHeadingTexts.includes(family.options);
+      return coreHeadings.every((heading) => productHeadingTexts.includes(heading)) &&
+        (optionHeadingIsPresent || facts.listing_configuration === "pre_applied_player");
     });
     if (!hasHeadingFamily) {
       blockers.push("Product descriptions must use one approved, complete heading family.");
@@ -1989,7 +2019,7 @@ function auditDescription(html, facts, blockers, reviewFlags, resolvedBranch = n
     if (facts.badge_status === "unavailable" && text.includes("sleeve badge")) {
       blockers.push("Unavailable badge products must not show the badge option.");
     }
-    if (facts.product_type === "shirt_only" && sectionText("details").includes("shorts")) {
+    if (facts.product_type === "shirt_only" && detailsText.includes("main colours") && detailsText.includes("shorts")) {
       blockers.push("Shirt-only products must not show a shorts colour in the details section.");
     }
   }
@@ -2018,6 +2048,17 @@ function auditDescription(html, facts, blockers, reviewFlags, resolvedBranch = n
     if (text.includes("nothing to choose")) {
       blockers.push("Pre-applied player copy must not imply that size or badge options cannot be selected.");
     }
+    if (!detailsText.includes("player print")) {
+      blockers.push("Pre-applied player products must show the player print in the details section.");
+    }
+    if (optionsText.includes("player print")) {
+      blockers.push("Pre-applied player products must not present the fixed player print as an add-on.");
+    }
+    if (facts.badge_status === "unavailable" && hasOptionsHeading) {
+      blockers.push("Fixed-player products without a badge option must omit the options section.");
+    }
+  } else if (!hasOptionsHeading || !optionsText.includes("name & number")) {
+    blockers.push("Plain customisable products must show the name-and-number option in the options section.");
   }
 
   const qaStatus = blockers.length ? "block" : reviewFlags.length ? "review" : "pass";
@@ -2031,6 +2072,7 @@ function auditDescription(html, facts, blockers, reviewFlags, resolvedBranch = n
       "fact_consistency",
       "html_structure",
       "configuration_logic",
+      "content_plan_coverage",
       "heading_family",
       "global_component_duplication",
       "unsupported_claims"
@@ -2039,7 +2081,7 @@ function auditDescription(html, facts, blockers, reviewFlags, resolvedBranch = n
     review_flags: reviewFlags,
     recommended_actions: recommendedActions(qaStatus, blockers, reviewFlags),
     generated_at: new Date().toISOString(),
-    generator_version: "test_project_rule_builder_0.3.0"
+      generator_version: "test_project_rule_builder_0.4.0"
   };
 }
 
