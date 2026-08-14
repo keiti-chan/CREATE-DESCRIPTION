@@ -56,21 +56,25 @@ Product descriptions use one clear pattern for each meaningful configuration:
 5. Plain shirt only
 6. Player-print shirt only
 
-The builder uses several **fact-led description angles**, not a word-spinner.
-Eligible angles include contents first, personalisation first, player-print
-first, shirt-only or no-socks expectation first, kit identity and (only when a
-main colour has been confirmed) a visual-first opening. The selected angle also
-uses one complete heading family:
+The builder uses seven **fact-led base plans** for every supported product
+configuration, not a word-spinner. The plans lead with different verified buying
+facts: contents, personalisation or player print, kit identity, ordering
+expectation, sleeve form, sizes, or the plain/fixed-print configuration. An
+eighth visual-first plan is eligible only when a main shirt colour has been
+confirmed. The selected plan also uses one complete heading family:
 
 - **What's Included / Product Details / Options You Can Add / Before You Order**
 - **In Your Order / Key Details / Order Details & Options / Important Order Notes**
 
-The generator chooses only an angle that matches the confirmed configuration;
-the visual angle is skipped when the shirt colour is blank. The **Generate**
-button moves to the next eligible, fact-safe version, so the team can choose the
-clearest one without changing the facts. Controlled wording pools still rotate
-for material notes, sizing warnings and plain-product personalisation. Critical
-facts, prices, limits and return warnings keep their approved meaning.
+The generator chooses only a plan that matches the confirmed configuration;
+the visual plan is skipped when the shirt colour is blank. For fixed-player
+listings, the player print is shown in the details section because it is already
+included, not an add-on. If there is no available sleeve badge, the options
+section is omitted rather than left empty. The **Generate** button moves to the
+next eligible, fact-safe version, so the team can choose the clearest one
+without changing the facts. Controlled wording pools still rotate for material
+notes, sizing warnings and plain-product personalisation. Critical facts, prices,
+limits and return warnings keep their approved meaning.
 
 Women’s and baby inputs are available in the form, but their broader KFK rollout
 and product-fact validation are separate work. Do not treat an available input
