@@ -10,16 +10,16 @@
   const branches = {};
 
   const customPersonalisation = [
-    "<li><strong>Name &amp; number:</strong> Not printed as standard. Personalisation can be added using the product options&mdash;names up to 13 letters and numbers up to 2 digits.</li>",
-    "<li><strong>Name &amp; number:</strong> The shirt is supplied without a name or number. Add personalisation through the product options&mdash;up to 13 letters and 2 digits.</li>",
+    "<li><strong>Name &amp; number:</strong> Not printed as standard. Personalisation can be added using the product options - names up to 13 letters and numbers up to 2 digits.</li>",
+    "<li><strong>Name &amp; number:</strong> The shirt is supplied without a name or number. Add personalisation through the product options - up to 13 letters and 2 digits.</li>",
     "<li><strong>Name &amp; number:</strong> No name or number is applied as standard. You can add personalisation through the product options, with names up to 13 letters and numbers up to 2 digits.</li>",
     "<li><strong>Name &amp; number:</strong> Personalisation is not printed as standard. Use the product options to add a name of up to 13 letters and a number of up to 2 digits.</li>",
-    "<li><strong>Name &amp; number:</strong> Choose the product options if you want to add a name and number&mdash;up to 13 letters and 2 digits.</li>"
+    "<li><strong>Name &amp; number:</strong> Choose the product options if you want to add a name and number - up to 13 letters and 2 digits.</li>"
   ];
 
   const customOrderNotes = [
     "<li>Personalised items can't be returned for a change of mind, so please double-check the spelling and number before ordering.</li>",
-    "<li>Once a name and number are printed, the item can't be returned for a change of mind&mdash;please check the spelling carefully before ordering.</li>",
+    "<li>Once a name and number are printed, the item can't be returned for a change of mind - please check the spelling carefully before ordering.</li>",
     "<li>Please check the spelling and number carefully before ordering. Personalised items can't be returned for a change of mind.</li>",
     "<li>Personalised orders can't be returned for a change of mind. Please check the spelling and number before adding to basket.</li>",
     "<li>Double-check the spelling and number before ordering. Personalised items can't be returned for a change of mind.</li>"

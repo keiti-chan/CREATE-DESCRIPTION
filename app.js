@@ -109,6 +109,7 @@ const forbiddenTerms = [
 ];
 const badgeLeagueOptions = [
   "Premier League",
+  "Roshn Saudi League",
   "LaLiga",
   "Serie A",
   "Bundesliga",
