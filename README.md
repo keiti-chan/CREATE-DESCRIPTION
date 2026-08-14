@@ -56,11 +56,21 @@ Product descriptions use one clear pattern for each meaningful configuration:
 5. Plain shirt only
 6. Player-print shirt only
 
-The copy changes with real facts such as the product name, included pieces,
-size range, main colours, badge availability, player print and optional verified
-design detail. Approved wording pools may rotate only for controlled areas such as
-material notes, sizing warnings and plain-product personalisation. Critical facts,
-prices, limits and return warnings must keep their approved meaning.
+The builder uses several **fact-led description angles**, not a word-spinner.
+Eligible angles include contents first, personalisation first, player-print
+first, shirt-only or no-socks expectation first, kit identity and (only when a
+main colour has been confirmed) a visual-first opening. The selected angle also
+uses one complete heading family:
+
+- **What's Included / Product Details / Options You Can Add / Before You Order**
+- **In Your Order / Key Details / Order Details & Options / Important Order Notes**
+
+The generator chooses only an angle that matches the confirmed configuration;
+the visual angle is skipped when the shirt colour is blank. The **Generate**
+button moves to the next eligible, fact-safe version, so the team can choose the
+clearest one without changing the facts. Controlled wording pools still rotate
+for material notes, sizing warnings and plain-product personalisation. Critical
+facts, prices, limits and return warnings keep their approved meaning.
 
 Women’s and baby inputs are available in the form, but their broader KFK rollout
 and product-fact validation are separate work. Do not treat an available input
