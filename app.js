@@ -122,6 +122,21 @@ const badgeLeagueOptions = [
   "FIFA Club World Cup"
 ];
 
+const productHeadingFamilies = Object.freeze({
+  direct: Object.freeze({
+    included: "What's Included",
+    details: "Product Details",
+    options: "Options You Can Add",
+    before: "Before You Order"
+  }),
+  buyer: Object.freeze({
+    included: "In Your Order",
+    details: "Key Details",
+    options: "Order Details & Options",
+    before: "Important Order Notes"
+  })
+});
+
 function getFacts() {
   syncProductSelectionFields();
   const data = new FormData(form);
@@ -1298,11 +1313,43 @@ function pick(list, facts, salt = 0) {
 function pickBranchVariant(branch, facts) {
   const branchConfig = templateLibrary.branches[branch];
   if (!branchConfig) return null;
-  return pick(branchConfig.variants, facts, 1);
+  const eligibleVariants = branchConfig.variants.filter((variant) => !variant.requiresColours || hasMainColoursForOpening(facts));
+  return pick(eligibleVariants.length ? eligibleVariants : branchConfig.variants, facts, 1);
 }
 
 function stableHash(text) {
   return String(text).split("").reduce((sum, char) => sum + char.charCodeAt(0), 0);
+}
+
+function hasMainColoursForOpening(facts) {
+  return Boolean(String(facts.main_colour_shirt || "").trim());
+}
+
+function mainColoursOpening(facts) {
+  const colours = [];
+  const shirt = String(facts.main_colour_shirt || "").trim();
+  const shorts = facts.product_type === "full_kit" ? String(facts.main_colour_shorts || "").trim() : "";
+  const socks = facts.product_type === "full_kit" && facts.socks_status === "included"
+    ? String(facts.main_colour_socks || "").trim()
+    : "";
+
+  if (shirt) colours.push(`${sentenceStart(shirt)} shirt`);
+  if (shorts) colours.push(`${sentenceStart(shorts)} shorts`);
+  if (socks) colours.push(`${sentenceStart(socks)} socks`);
+
+  if (colours.length < 2) return colours[0] || "";
+  if (colours.length === 2) return `${colours[0]} and ${colours[1]}`;
+  return `${colours.slice(0, -1).join(", ")} and ${colours[colours.length - 1]}`;
+}
+
+function mainColoursOpeningIntro(facts) {
+  const shirt = String(facts.main_colour_shirt || "").trim();
+  const shorts = facts.product_type === "full_kit" ? String(facts.main_colour_shorts || "").trim() : "";
+  const socks = facts.product_type === "full_kit" && facts.socks_status === "included"
+    ? String(facts.main_colour_socks || "").trim()
+    : "";
+  const colourCount = [shirt, shorts, socks].filter(Boolean).length;
+  return `The main colour${colourCount === 1 ? " is" : "s are"} ${mainColoursOpening(facts)}`;
 }
 
 function titleCasePhrase(value) {
@@ -1334,6 +1381,8 @@ function interpolate(template, facts, { titleCaseProductLabels = false } = {}) {
     .replaceAll("{sock_phrase}", facts.socks_status === "included" ? " and socks" : "")
     .replaceAll("{player_name}", esc(displayName(facts.pre_applied_name)))
     .replaceAll("{player_number}", esc(facts.pre_applied_number))
+    .replaceAll("{main_colours_opening_intro}", esc(mainColoursOpeningIntro(facts)))
+    .replaceAll("{main_shirt_colour}", esc(sentenceStart(facts.main_colour_shirt)))
     .replaceAll("{bundle_name}", esc(facts.bundle_name))
     .replaceAll("{bundle_theme}", esc(facts.bundle_theme))
     .replaceAll("{audience_label}", esc(audienceLabel(facts.audience)))
@@ -1753,6 +1802,7 @@ function insertSizingWarning(lines, facts) {
 
 function renderDescription(facts, branch) {
   const template = pickBranchVariant(branch, facts);
+  const headings = productHeadingFamilies[template.headingFamily] || productHeadingFamilies.direct;
   const opening = interpolate(template.opening, facts, { titleCaseProductLabels: true });
   const openingSecondary = interpolate(template.openingSecondary || "", facts, { titleCaseProductLabels: true });
 
@@ -1783,22 +1833,22 @@ function renderDescription(facts, branch) {
     `<p>${opening}</p>`,
     openingSecondary ? `<p>${openingSecondary}</p>` : "",
     "",
-    "<h3>What's Included</h3>",
+    `<h3>${headings.included}</h3>`,
     "<ul>",
     includedItemsHtml(facts),
     "</ul>",
     "",
-    "<h3>Product Details</h3>",
+    `<h3>${headings.details}</h3>`,
     "<ul>",
     productDetails.join("\n"),
     "</ul>",
     "",
-    "<h3>Options You Can Add</h3>",
+    `<h3>${headings.options}</h3>`,
     "<ul>",
     optionLines.join("\n"),
     "</ul>",
     "",
-    "<h3>Before You Order</h3>",
+    `<h3>${headings.before}</h3>`,
     "<ul>",
     beforeOrder,
     "</ul>"
@@ -1874,7 +1924,7 @@ function auditDescription(html, facts, blockers, reviewFlags, resolvedBranch = n
       review_flags: reviewFlags,
       recommended_actions: recommendedActions(qaStatus, blockers, reviewFlags),
       generated_at: new Date().toISOString(),
-      generator_version: "test_project_rule_builder_0.2.0"
+      generator_version: "test_project_rule_builder_0.3.0"
     };
   }
 
@@ -1883,16 +1933,25 @@ function auditDescription(html, facts, blockers, reviewFlags, resolvedBranch = n
   const tags = [...doc.querySelectorAll("#root *")].map((node) => node.tagName);
   const badTags = tags.filter((tag) => !allowedTags.has(tag));
   const text = doc.querySelector("#root").textContent.toLowerCase();
-  const sectionText = (headingText) => {
+  const headingAliases = {
+    included: ["what's included", "in your order"],
+    details: ["product details", "key details"],
+    options: ["options you can add", "order details & options"],
+    before: ["before you order", "important order notes"]
+  };
+  const sectionText = (section) => {
+    const aliases = headingAliases[section] || [String(section).toLowerCase()];
     const heading = [...doc.querySelectorAll("#root h3")]
-      .find((node) => node.textContent.trim().toLowerCase() === headingText);
+      .find((node) => aliases.includes(node.textContent.trim().toLowerCase()));
     return heading?.nextElementSibling?.textContent.toLowerCase() || "";
   };
   const openingText = [...doc.querySelectorAll("#root > p")]
     .map((node) => node.textContent.toLowerCase())
     .join(" ");
-  const includedText = sectionText("what's included");
-  const beforeOrderText = sectionText("before you order");
+  const includedText = sectionText("included");
+  const beforeOrderText = sectionText("before");
+  const productHeadingTexts = [...doc.querySelectorAll("#root h3")]
+    .map((node) => node.textContent.trim());
   const unsupported = forbiddenTerms.filter((term) => text.includes(term));
 
   if (badTags.length) {
@@ -1901,6 +1960,16 @@ function auditDescription(html, facts, blockers, reviewFlags, resolvedBranch = n
 
   if (unsupported.length) {
     blockers.push(`Description contains unsupported claim term(s): ${unsupported.join(", ")}.`);
+  }
+
+  if (facts.product_type !== "bundle") {
+    const hasHeadingFamily = Object.values(productHeadingFamilies).some((family) => {
+      const expected = [family.included, family.details, family.options, family.before];
+      return expected.every((heading) => productHeadingTexts.includes(heading));
+    });
+    if (!hasHeadingFamily) {
+      blockers.push("Product descriptions must use one approved, complete heading family.");
+    }
   }
 
   if (facts.product_type !== "bundle") {
@@ -1919,18 +1988,18 @@ function auditDescription(html, facts, blockers, reviewFlags, resolvedBranch = n
     if (facts.badge_status === "unavailable" && text.includes("sleeve badge")) {
       blockers.push("Unavailable badge products must not show the badge option.");
     }
-    if (facts.product_type === "shirt_only" && sectionText("product details").includes("shorts")) {
-      blockers.push("Shirt-only products must not show a shorts colour in Product Details.");
+    if (facts.product_type === "shirt_only" && sectionText("details").includes("shorts")) {
+      blockers.push("Shirt-only products must not show a shorts colour in the details section.");
     }
   }
 
   if (facts.socks_status === "unavailable") {
     if (facts.site === "KFK") {
       if (includedText.includes("socks")) {
-        blockers.push("KFK no-socks products must list only received items under What's Included.");
+        blockers.push("KFK no-socks products must list only received items under the included-items section.");
       }
       if (!openingText.includes("socks are not included") || !beforeOrderText.includes("socks are not included")) {
-        blockers.push("KFK no-socks products must state that socks are not included in the opening and Before You Order.");
+        blockers.push("KFK no-socks products must state that socks are not included in the opening and order-notes section.");
       }
     } else if (!text.includes("socks are not included")) {
       blockers.push("No-socks product must state that socks are not included.");
@@ -1961,6 +2030,7 @@ function auditDescription(html, facts, blockers, reviewFlags, resolvedBranch = n
       "fact_consistency",
       "html_structure",
       "configuration_logic",
+      "heading_family",
       "global_component_duplication",
       "unsupported_claims"
     ],
@@ -1968,7 +2038,7 @@ function auditDescription(html, facts, blockers, reviewFlags, resolvedBranch = n
     review_flags: reviewFlags,
     recommended_actions: recommendedActions(qaStatus, blockers, reviewFlags),
     generated_at: new Date().toISOString(),
-    generator_version: "test_project_rule_builder_0.2.0"
+    generator_version: "test_project_rule_builder_0.3.0"
   };
 }
 

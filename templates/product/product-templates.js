@@ -95,8 +95,11 @@
 
   function createVariants(openings, keyLines, beforeLines) {
     return openings.map((opening, index) => ({
-      opening: Array.isArray(opening) ? opening[0] : opening,
-      openingSecondary: Array.isArray(opening) ? opening[1] : "",
+      angle: opening.angle || "contents_first",
+      headingFamily: opening.headingFamily || "direct",
+      requiresColours: Boolean(opening.requiresColours),
+      opening: opening.opening,
+      openingSecondary: opening.openingSecondary || "",
       keyDetail: keyLines[index],
       beforeOrder: beforeLines[index]
     }));
@@ -166,11 +169,39 @@
       : "a {sleeve_label} shirt and matching shorts";
     const noSocksNote = withSocks ? "" : " Socks are not included.";
     const openings = [
-      ["{product_name} is supplied with " + includedKitItems + "." + noSocksNote, "It is not printed as standard, so an optional name and number can be added using the product options."],
-      ["This {team} {season} {audience_opening_label} {kit_type_label} Kit includes " + includedKitItems + "." + noSocksNote, "The shirt is supplied without a name or number unless you add personalisation using the product options."],
-      ["{product_name} brings together " + includedKitItems + "." + noSocksNote, "Optional name-and-number personalisation can be added using the product options."],
-      ["The {team} {season} {audience_opening_label} {kit_type_label} Kit is supplied with " + includedKitItems + "." + noSocksNote, "No name or number is applied as standard; personalisation can be added using the product options."],
-      ["This {audience_opening_label} {kit_type_label} Kit for {team} includes " + includedKitItems + "." + noSocksNote, "Choose the product options if you would like to add an optional name and number."]
+      {
+        angle: "contents_first",
+        headingFamily: "direct",
+        opening: "{product_name} is supplied with " + includedKitItems + "." + noSocksNote,
+        openingSecondary: "It is not printed as standard, so an optional name and number can be added using the product options."
+      },
+      {
+        angle: "personalisation_first",
+        headingFamily: "buyer",
+        opening: "The {team} {season} {audience_opening_label} {kit_type_label} Kit is supplied without a name or number as standard. Personalisation can be added using the product options.",
+        openingSecondary: "Your order includes " + includedKitItems + "." + noSocksNote
+      },
+      {
+        angle: "kit_identity_first",
+        headingFamily: "buyer",
+        opening: "This {team} {season} {audience_opening_label} {kit_type_label} Kit brings together " + includedKitItems + "." + noSocksNote,
+        openingSecondary: "Choose the product options if you would like to add an optional name and number."
+      },
+      {
+        angle: "visual_first",
+        headingFamily: "direct",
+        requiresColours: true,
+        opening: "{main_colours_opening_intro}. This {team} {season} {audience_opening_label} {kit_type_label} Kit is supplied with " + includedKitItems + "." + noSocksNote,
+        openingSecondary: "No name or number is applied as standard; personalisation can be added using the product options."
+      },
+      {
+        angle: withSocks ? "ordering_expectation_first" : "no_socks_first",
+        headingFamily: "direct",
+        opening: withSocks
+          ? "This {audience_opening_label} {kit_type_label} Kit for {team} includes " + includedKitItems + "."
+          : "This {audience_opening_label} {kit_type_label} Kit for {team} is supplied with a shirt and matching shorts. Socks are not included.",
+        openingSecondary: "Optional name-and-number personalisation can be added using the product options."
+      }
     ];
 
     return branch(createVariants(openings, customPersonalisation, customPersonalisation.map((_, index) => fullKitBeforeOrder(withSocks, index))));
@@ -182,11 +213,39 @@
       : "a {sleeve_label} shirt and matching shorts";
     const noSocksNote = withSocks ? "" : " Socks are not included.";
     const openings = [
-      ["{product_name} is supplied with {player_name} name and number {player_number} already applied to the back, plus " + includedKitItems + "." + noSocksNote, "The fixed player print is already applied, so no name or number needs to be entered for this listing."],
-      ["This {team} {season} {audience_opening_label} {kit_type_label} Kit is supplied with {player_name} name and number {player_number} already applied to the back, plus " + includedKitItems + "." + noSocksNote, "The player details are already set for this listing, so there is no name or number to enter at checkout."],
-      ["{product_name} comes with {player_name} name and number {player_number} already applied to the back, together with " + includedKitItems + "." + noSocksNote, "This is the fixed {player_name} {player_number} version; additional name-and-number personalisation is not available."],
-      ["The {team} {season} {audience_opening_label} {kit_type_label} Kit includes {player_name} name and number {player_number} already applied to the back, plus " + includedKitItems + "." + noSocksNote, "The player print is ready on the shirt, so no name or number needs to be entered for this listing."],
-      ["This {audience_opening_label} {kit_type_label} Kit for {team} is supplied as the fixed {player_name} {player_number} version with " + includedKitItems + "." + noSocksNote, "The player print is already applied to the back before checkout."]
+      {
+        angle: "player_print_first",
+        headingFamily: "buyer",
+        opening: "{product_name} is supplied with {player_name} name and number {player_number} already applied to the back, plus " + includedKitItems + "." + noSocksNote,
+        openingSecondary: "The fixed player print is already applied, so no name or number needs to be entered for this listing."
+      },
+      {
+        angle: "contents_first",
+        headingFamily: "direct",
+        opening: "This {team} {season} {audience_opening_label} {kit_type_label} Kit includes " + includedKitItems + "." + noSocksNote,
+        openingSecondary: "{player_name} name and number {player_number} are already applied to the back for this fixed-print listing."
+      },
+      {
+        angle: "ordering_expectation_first",
+        headingFamily: "buyer",
+        opening: "{player_name} name and number {player_number} are already applied to the back of this {team} {season} {audience_opening_label} {kit_type_label} Kit.",
+        openingSecondary: "It is supplied with " + includedKitItems + "." + noSocksNote + " A different name or number cannot be added."
+      },
+      {
+        angle: "visual_first",
+        headingFamily: "direct",
+        requiresColours: true,
+        opening: "{main_colours_opening_intro}. This {team} {season} {audience_opening_label} {kit_type_label} Kit is supplied with " + includedKitItems + "." + noSocksNote,
+        openingSecondary: "The shirt already has {player_name} name and number {player_number} applied to the back."
+      },
+      {
+        angle: withSocks ? "kit_identity_first" : "no_socks_first",
+        headingFamily: "buyer",
+        opening: withSocks
+          ? "This {audience_opening_label} {kit_type_label} Kit for {team} is the fixed {player_name} {player_number} version, supplied with " + includedKitItems + "."
+          : "This {audience_opening_label} {kit_type_label} Kit for {team} is the fixed {player_name} {player_number} version, supplied with a shirt and matching shorts. Socks are not included.",
+        openingSecondary: "The player print is already applied to the back before checkout."
+      }
     ];
 
     return branch(createVariants(openings, playerPrint, playerPrint.map((_, index) => playerFullKitBeforeOrder(withSocks, index))));
@@ -195,11 +254,37 @@
   function customShirtOnly(audience) {
     const shirtOnlyNote = " Shorts and socks are not included.";
     const openings = [
-      ["{product_name} is supplied as a {sleeve_label} {product_item_label}." + shirtOnlyNote, "It is not printed as standard, so an optional name and number can be added using the product options."],
-      ["This {team} {season} {audience_opening_label} {kit_type_label} {product_item_label} is supplied as a standalone item." + shirtOnlyNote, "The shirt is supplied without a name or number unless you add personalisation using the product options."],
-      ["{product_name} is offered as a standalone {product_item_label}." + shirtOnlyNote, "Optional name-and-number personalisation can be added using the product options."],
-      ["The {team} {season} {audience_opening_label} {kit_type_label} {product_item_label} is supplied as a single item." + shirtOnlyNote, "No name or number is applied as standard; personalisation can be added using the product options."],
-      ["This {audience_opening_label} {kit_type_label} {product_item_label} for {team} is available on its own." + shirtOnlyNote, "Choose the product options if you would like to add an optional name and number."]
+      {
+        angle: "shirt_only_first",
+        headingFamily: "direct",
+        opening: "{product_name} is supplied as a {sleeve_label} {product_item_label}." + shirtOnlyNote,
+        openingSecondary: "It is not printed as standard, so an optional name and number can be added using the product options."
+      },
+      {
+        angle: "personalisation_first",
+        headingFamily: "buyer",
+        opening: "The {team} {season} {audience_opening_label} {kit_type_label} {product_item_label} is supplied without a name or number as standard. Personalisation can be added using the product options.",
+        openingSecondary: "It is a standalone {product_item_label}." + shirtOnlyNote
+      },
+      {
+        angle: "kit_identity_first",
+        headingFamily: "buyer",
+        opening: "This {team} {season} {audience_opening_label} {kit_type_label} {product_item_label} is supplied as a standalone item." + shirtOnlyNote,
+        openingSecondary: "Choose the product options if you would like to add an optional name and number."
+      },
+      {
+        angle: "visual_first",
+        headingFamily: "direct",
+        requiresColours: true,
+        opening: "The main shirt colour is {main_shirt_colour}. This {team} {season} {audience_opening_label} {kit_type_label} {product_item_label} is supplied on its own." + shirtOnlyNote,
+        openingSecondary: "No name or number is applied as standard; personalisation can be added using the product options."
+      },
+      {
+        angle: "ordering_expectation_first",
+        headingFamily: "direct",
+        opening: "This {audience_opening_label} {kit_type_label} {product_item_label} for {team} is a single-item listing. Shorts and socks are not included.",
+        openingSecondary: "Optional name-and-number personalisation can be added using the product options."
+      }
     ];
 
     return branch(createVariants(openings, customPersonalisation, customPersonalisation.map((_, index) => shirtOnlyBeforeOrder(index))));
@@ -208,11 +293,37 @@
   function playerShirtOnly(audience) {
     const shirtOnlyNote = " Shorts and socks are not included.";
     const openings = [
-      ["{product_name} is supplied with {player_name} name and number {player_number} already applied to the back." + shirtOnlyNote, "The fixed player print is already applied, so no name or number needs to be entered for this listing."],
-      ["This {team} {season} {audience_opening_label} {kit_type_label} {product_item_label} is supplied with {player_name} name and number {player_number} already applied to the back." + shirtOnlyNote, "The player details are already set for this listing, so there is no name or number to enter at checkout."],
-      ["{product_name} is the {player_name} {player_number} version, with the print already applied to the back." + shirtOnlyNote, "This is the fixed {player_name} {player_number} version; additional name-and-number personalisation is not available."],
-      ["The {team} {season} {audience_opening_label} {kit_type_label} {product_item_label} comes with {player_name} name and number {player_number} already applied to the back." + shirtOnlyNote, "The player print is ready on the shirt, so no name or number needs to be entered for this listing."],
-      ["This {audience_opening_label} {kit_type_label} {product_item_label} for {team} is supplied as the fixed {player_name} {player_number} version." + shirtOnlyNote, "The player print is already applied to the back before checkout."]
+      {
+        angle: "player_print_first",
+        headingFamily: "buyer",
+        opening: "{product_name} is supplied with {player_name} name and number {player_number} already applied to the back." + shirtOnlyNote,
+        openingSecondary: "The fixed player print is already applied, so no name or number needs to be entered for this listing."
+      },
+      {
+        angle: "shirt_only_first",
+        headingFamily: "direct",
+        opening: "This {team} {season} {audience_opening_label} {kit_type_label} {product_item_label} is supplied as a standalone item." + shirtOnlyNote,
+        openingSecondary: "It comes with {player_name} name and number {player_number} already applied to the back."
+      },
+      {
+        angle: "ordering_expectation_first",
+        headingFamily: "buyer",
+        opening: "{player_name} name and number {player_number} are already applied to the back of this {team} {season} {audience_opening_label} {kit_type_label} {product_item_label}.",
+        openingSecondary: "This is a single-item listing; shorts and socks are not included, and a different name or number cannot be added."
+      },
+      {
+        angle: "visual_first",
+        headingFamily: "direct",
+        requiresColours: true,
+        opening: "The main shirt colour is {main_shirt_colour}. This {team} {season} {audience_opening_label} {kit_type_label} {product_item_label} is supplied on its own." + shirtOnlyNote,
+        openingSecondary: "The shirt already has {player_name} name and number {player_number} applied to the back."
+      },
+      {
+        angle: "kit_identity_first",
+        headingFamily: "buyer",
+        opening: "This {audience_opening_label} {kit_type_label} {product_item_label} for {team} is supplied as the fixed {player_name} {player_number} version." + shirtOnlyNote,
+        openingSecondary: "The player print is already applied to the back before checkout."
+      }
     ];
 
     return branch(createVariants(openings, playerPrint, playerPrint.map((_, index) => playerShirtOnlyBeforeOrder(index))));
