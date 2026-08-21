@@ -1,6 +1,6 @@
 (function () {
-  const fullKitAudiences = ["kids", "men", "adult", "women", "baby"];
-  const shirtAudiences = ["kids", "men", "adult", "women", "baby"];
+  const fullKitAudiences = ["kids", "men", "adult", "women"];
+  const shirtAudiences = ["kids", "men", "adult", "women"];
   const configurations = [
     { key: "plain_customisable", label: "Plain", factory: "custom" },
     { key: "pre_applied_player", label: "Player", factory: "player" }
@@ -25,6 +25,15 @@
     "<li>Double-check the spelling and number before ordering. Personalised items can't be returned for a change of mind.</li>",
     "<li>Check the name and number before you place a personalised order. Printed items can't be returned for a change of mind.</li>",
     "<li>Before ordering, check the spelling and number carefully. Personalised items can't be returned if you change your mind.</li>"
+  ];
+  const bodysuitPersonalisation = [
+    "<li><strong>Name &amp; number:</strong> Not printed as standard. Personalisation can be added using the product options - names up to 13 letters and numbers up to 2 digits.</li>",
+    "<li><strong>Name &amp; number:</strong> The bodysuit is supplied without a name or number. Add personalisation through the product options - up to 13 letters and 2 digits.</li>",
+    "<li><strong>Name &amp; number:</strong> No name or number is applied as standard. You can add personalisation through the product options, with names up to 13 letters and numbers up to 2 digits.</li>",
+    "<li><strong>Name &amp; number:</strong> Personalisation is not printed as standard. Use the product options to add a name of up to 13 letters and a number of up to 2 digits.</li>",
+    "<li><strong>Name &amp; number:</strong> Choose the product options if you want to add a name and number - up to 13 letters and 2 digits.</li>",
+    "<li><strong>Name &amp; number:</strong> Add a name and number in the product options if required. Names can have up to 13 letters and numbers up to 2 digits.</li>",
+    "<li><strong>Name &amp; number:</strong> The bodysuit is supplied plain. Optional personalisation is available in the product options, with up to 13 letters and 2 digits.</li>"
   ];
   const playerPrint = [
     "<li><strong>Player print:</strong> {player_name} name and number {player_number} are already applied to the back and included in this listing.</li>",
@@ -53,6 +62,24 @@
     "<li>This fixed-print listing cannot be changed to a different player name or number.</li>",
     "<li>A different name or number is not available for this pre-applied player-print listing.</li>"
   ];
+  const bodysuitPlayerPrint = [
+    "<li><strong>Player print:</strong> {player_name} name and number {player_number} are already applied and included in this listing.</li>",
+    "<li><strong>Player print:</strong> This listing is supplied with {player_name} name and number {player_number} already applied.</li>",
+    "<li><strong>Player print:</strong> {player_name} {player_number} is the pre-applied print included in this listing.</li>",
+    "<li><strong>Player print:</strong> The bodysuit already has {player_name} name and number {player_number} applied.</li>",
+    "<li><strong>Player print:</strong> This is the {player_name} {player_number} version, supplied with the print already included.</li>",
+    "<li><strong>Player print:</strong> The fixed {player_name} name and number {player_number} print is included in this listing.</li>",
+    "<li><strong>Player print:</strong> {player_name} {player_number} is already applied to this baby football bodysuit.</li>"
+  ];
+  const bodysuitPlayerConfirmations = [
+    "<li>{player_name} name and number {player_number} are already applied, so no name or number needs to be entered.</li>",
+    "<li>The {player_name} {player_number} print is already applied; no player details need to be entered at checkout.</li>",
+    "<li>This fixed {player_name} {player_number} version arrives with the player print already applied.</li>",
+    "<li>{player_name} {player_number} is already applied, so there is no name or number to add.</li>",
+    "<li>The bodysuit is supplied with {player_name} name and number {player_number} already applied.</li>",
+    "<li>The fixed {player_name} {player_number} print is already included.</li>",
+    "<li>{player_name} name and number {player_number} are set for this listing and already applied.</li>"
+  ];
   const materialNotes = [
     "The fabric is designed to be lightweight and quick-drying. Exact fibre composition and fabric feel may vary slightly between production batches.",
     "The fabric is made from polyester and designed to be lightweight and quick-drying. Fibre composition and fabric feel may vary slightly between batches.",
@@ -76,13 +103,16 @@
 
   function plainPlan(plan, kind, withSocks) {
     const noSocks = kind === "kit" && !withSocks;
-    const keyDetail = approvedCopy(customPersonalisation, plan.copyIndex, "plain personalisation");
+    const personalisationPool = kind === "bodysuit" ? bodysuitPersonalisation : customPersonalisation;
+    const keyDetail = approvedCopy(personalisationPool, plan.copyIndex, "plain personalisation");
     const changeOfMind = approvedCopy(customOrderNotes, plan.copyIndex, "plain order-note");
     return {
       ...plan,
       detailPlacement: "options",
       keyDetail,
-      beforeOrder: kind === "shirt"
+      beforeOrder: kind === "bodysuit"
+        ? ["<li>This listing includes one baby football bodysuit.</li>", changeOfMind]
+        : kind === "shirt"
         ? ["<li>This is a single-item product. Shorts and socks are not included.</li>", changeOfMind]
         : noSocks
           ? ["<li>This listing includes the shirt and matching shorts. Socks are not included.</li>", changeOfMind]
@@ -92,14 +122,18 @@
 
   function playerPlan(plan, kind, withSocks) {
     const noSocks = kind === "kit" && !withSocks;
-    const keyDetail = approvedCopy(playerPrint, plan.copyIndex, "player-print");
-    const confirmation = approvedCopy(playerPrintConfirmations, plan.copyIndex, "player confirmation");
+    const playerPrintPool = kind === "bodysuit" ? bodysuitPlayerPrint : playerPrint;
+    const playerConfirmationPool = kind === "bodysuit" ? bodysuitPlayerConfirmations : playerPrintConfirmations;
+    const keyDetail = approvedCopy(playerPrintPool, plan.copyIndex, "player-print");
+    const confirmation = approvedCopy(playerConfirmationPool, plan.copyIndex, "player confirmation");
     const fixedPrint = approvedCopy(playerOrderNotes, plan.copyIndex, "player order-note");
     return {
       ...plan,
       detailPlacement: "details",
       keyDetail,
-      beforeOrder: kind === "shirt"
+      beforeOrder: kind === "bodysuit"
+        ? [confirmation, fixedPrint, "<li>This listing includes one baby football bodysuit.</li>"]
+        : kind === "shirt"
         ? [confirmation, fixedPrint, "<li>This is a single-item product. Shorts and socks are not included.</li>"]
         : noSocks
           ? [confirmation, "<li>This listing includes the shirt and matching shorts. Socks are not included.</li>", fixedPrint]
@@ -146,6 +180,23 @@
     return plans.map((plan) => wrap(plan, "shirt", false));
   }
 
+  function bodysuitPlans(type) {
+    const isPlayer = type === "player";
+    const fixed = "the fixed {player_name} {player_number} version";
+    const wrap = isPlayer ? playerPlan : plainPlan;
+    const plans = [
+      { angle: isPlayer ? "player_print_first" : "contents_first", headingFamily: isPlayer ? "buyer" : "direct", detailsOrder: isPlayer ? "key_first" : "standard", copyIndex: 0, opening: isPlayer ? "{product_name} is supplied as a one-piece baby football bodysuit with {player_name} name and number {player_number} already applied." : "{product_name} is supplied as a one-piece baby football bodysuit.", openingSecondary: isPlayer ? "The fixed player print is already applied, so no name or number needs to be entered for this listing." : "It is not printed as standard, so an optional name and number can be added using the product options." },
+      { angle: isPlayer ? "contents_first" : "personalisation_first", headingFamily: isPlayer ? "direct" : "buyer", detailsOrder: isPlayer ? "standard" : "identity", copyIndex: 1, opening: isPlayer ? "This {team} {season} Baby {kit_type_label} football bodysuit is supplied as one piece with {player_name} name and number {player_number} already applied." : "The {team} {season} Baby {kit_type_label} football bodysuit is supplied without a name or number as standard. Personalisation can be added using the product options.", openingSecondary: isPlayer ? "This listing includes one baby football bodysuit." : "It is a one-piece baby football bodysuit." },
+      { angle: isPlayer ? "ordering_expectation_first" : "kit_identity_first", headingFamily: "buyer", detailsOrder: isPlayer ? "key_first" : "identity", copyIndex: 2, opening: isPlayer ? "{player_name} name and number {player_number} are already applied to this {team} {season} Baby {kit_type_label} football bodysuit." : "This {team} {season} Baby {kit_type_label} football bodysuit is supplied as one piece.", openingSecondary: isPlayer ? "A different name or number cannot be added." : "Choose the product options if you would like to add an optional name and number." },
+      { angle: "one_piece_first", headingFamily: "direct", detailsOrder: "identity", copyIndex: 3, opening: "This Baby {kit_type_label} football bodysuit for {team} is supplied as one piece.", openingSecondary: isPlayer ? "The fixed {player_name} {player_number} print is already applied." : "No name or number is applied as standard; personalisation can be added using the product options." },
+      { angle: "kit_identity_first", headingFamily: "buyer", detailsOrder: "kit_first", copyIndex: 4, opening: "The {team} {season} Baby {kit_type_label} football bodysuit is a one-piece item for babies.", openingSecondary: isPlayer ? "It is " + fixed + ", with the player print already applied." : "Optional name-and-number personalisation can be added using the product options." },
+      { angle: "size_first", headingFamily: "direct", detailsOrder: "size_first", sizingPlacement: "first", copyIndex: 5, opening: "Available in {visible_size_range}, this {team} {season} Baby {kit_type_label} football bodysuit is supplied as one piece.", openingSecondary: isPlayer ? "The fixed {player_name} name and number {player_number} are already applied." : "Add an optional name and number using the product options if required." },
+      { angle: isPlayer ? "configuration_first" : "plain_first", headingFamily: "buyer", detailsOrder: "kit_first", copyIndex: 6, opening: isPlayer ? "This {team} {season} Baby {kit_type_label} football bodysuit is " + fixed + "." : "This {team} {season} Baby {kit_type_label} football bodysuit is supplied plain, with no name or number applied.", openingSecondary: isPlayer ? "The player name and number are already applied and cannot be changed." : "Personalisation can be selected in the product options." },
+      { angle: "visual_first", headingFamily: "direct", detailsOrder: "colours_first", requiresColours: true, copyIndex: 0, opening: "The main bodysuit colour is {main_shirt_colour}. This {team} {season} Baby {kit_type_label} football bodysuit is supplied as one piece.", openingSecondary: isPlayer ? "The bodysuit already has {player_name} name and number {player_number} applied." : "No name or number is applied as standard; personalisation can be added using the product options." }
+    ];
+    return plans.map((plan) => wrap(plan, "bodysuit", false));
+  }
+
   function addBranch(key, label, variants) {
     branchLabels[key] = label;
     branches[key] = { variants };
@@ -162,6 +213,10 @@
     const type = config.factory === "custom" ? "plain" : "player";
     addBranch(`${config.key}_${audience}_shirt_only`, `${label} shirt only`, shirtPlans(type));
   }));
+  configurations.forEach((config) => {
+    const type = config.factory === "custom" ? "plain" : "player";
+    addBranch(`${config.key}_baby_bodysuit`, `${config.label} baby bodysuit`, bodysuitPlans(type));
+  });
 
   window.PRODUCT_DESCRIPTION_TEMPLATES = { branchLabels, branches, copyRules: { materialNotes, sizingWarnings } };
 })();
