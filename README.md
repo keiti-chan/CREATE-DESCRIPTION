@@ -18,9 +18,10 @@ There is nothing to install. Open [`index.html`](./index.html) in a browser.
    league-specific sleeve badge is available, its price is controlled in the
    product options rather than repeated in the description.
 4. Select the sleeve-badge availability and enter the badge league when it is
-   available.
-5. For shirt-only products, the shorts-colour field is disabled and omitted
-   from the description.
+   available. `MLS` resolves to **Major League Soccer (MLS)**; `Saudi Pro
+   League` resolves to **Roshn Saudi League**.
+5. For shirt-only products and Baby Bodysuits, the shorts-colour field is
+   disabled and omitted from the description.
 6. Add a verified design detail only when the image or approved record supports
    it. Leave it blank when unsure.
 7. Select **Generate**.
@@ -32,7 +33,7 @@ facts as evidence for a real product.
 
 ## What the builder checks
 
-- full kit versus shirt-only contents;
+- full kit, shirt-only and one-piece Baby Bodysuit contents;
 - socks included, unavailable or not applicable;
 - plain customisable versus fixed player-print listings;
 - visible size range and Size Guide wording;
@@ -55,6 +56,8 @@ Product descriptions use one clear pattern for each meaningful configuration:
 4. Player-print full kit, no socks
 5. Plain shirt only
 6. Player-print shirt only
+7. Plain Baby Bodysuit
+8. Player-print Baby Bodysuit
 
 The builder uses seven **fact-led base plans** for every supported product
 configuration, not a word-spinner. The plans lead with different verified buying
@@ -76,9 +79,11 @@ without changing the facts. Controlled wording pools still rotate for material
 notes, sizing warnings and plain-product personalisation. Critical facts, prices,
 limits and return warnings keep their approved meaning.
 
-Women’s and baby inputs are available in the form, but their broader KFK rollout
-and product-fact validation are separate work. Do not treat an available input
-as approval to publish a listing.
+Baby listings use the dedicated **Baby Bodysuit** selection. This is a one-piece
+item, not a shirt-and-shorts kit: the builder lists one baby football bodysuit
+and does not infer shorts or socks from a legacy product title containing
+“Baby Football Kit”. Do not treat an available input as approval to publish a
+listing; product facts still need human review.
 
 ## Before approving a real description
 

@@ -108,19 +108,20 @@ const forbiddenTerms = [
   "guaranteed fit"
 ];
 const badgeLeagueOptions = [
-  "Premier League",
-  "Roshn Saudi League",
-  "LaLiga",
-  "Serie A",
-  "Bundesliga",
-  "Ligue 1",
-  "Eredivisie",
-  "Primeira Liga",
-  "Scottish Premiership",
-  "UEFA Champions League",
-  "UEFA Europa League",
-  "UEFA Conference League",
-  "FIFA Club World Cup"
+  { value: "Premier League", aliases: [] },
+  { value: "Major League Soccer (MLS)", aliases: ["MLS", "Major League Soccer"] },
+  { value: "Roshn Saudi League", aliases: ["Saudi Pro League", "SPL", "RSL"] },
+  { value: "LaLiga", aliases: [] },
+  { value: "Serie A", aliases: [] },
+  { value: "Bundesliga", aliases: [] },
+  { value: "Ligue 1", aliases: [] },
+  { value: "Eredivisie", aliases: [] },
+  { value: "Primeira Liga", aliases: [] },
+  { value: "Scottish Premiership", aliases: [] },
+  { value: "UEFA Champions League", aliases: [] },
+  { value: "UEFA Europa League", aliases: [] },
+  { value: "UEFA Conference League", aliases: [] },
+  { value: "FIFA Club World Cup", aliases: [] }
 ];
 
 const productHeadingFamilies = Object.freeze({
@@ -148,7 +149,7 @@ function getFacts() {
 
   Object.assign(facts, fixedKfkFacts);
   facts.badge_status = facts.badge_status === "available" ? "available" : "unavailable";
-  facts.badge_league = facts.badge_status === "available" ? String(facts.badge_league || "").trim() : "";
+  facts.badge_league = facts.badge_status === "available" ? canonicalBadgeLeague(facts.badge_league) : "";
   facts.badge_champion_status = facts.badge_status === "available" && facts.badge_champion_status === "champion"
     ? "champion"
     : "not_champion";
@@ -244,9 +245,9 @@ function inferProductSelectionFromName() {
   const hasLongSleeve = hasStandaloneKeyword(productName, "long sleeve") || hasStandaloneKeyword(productName, "long-sleeve");
   const hasKit = hasStandaloneKeyword(productName, "football kit") || hasStandaloneKeyword(productName, "kit");
   const hasShirt = hasStandaloneKeyword(productName, "football shirt") || hasStandaloneKeyword(productName, "shirt");
-  const hasSuit = hasStandaloneKeyword(productName, "suit");
+  const hasBodysuit = hasStandaloneKeyword(productName, "bodysuit") || hasStandaloneKeyword(productName, "body suit");
 
-  if (hasSuit) productKindSelect.value = "Suit";
+  if (hasBodysuit) productKindSelect.value = "Baby Bodysuit";
   else if (hasLongSleeve && hasKit) productKindSelect.value = "Long Sleeve Kit";
   else if (hasLongSleeve && hasShirt) productKindSelect.value = "Long Sleeve Shirt";
   else if (hasKit) productKindSelect.value = "Kit";
@@ -274,18 +275,18 @@ function inferProductSelectionFromName() {
 function syncProductSelectionFields() {
   let isKit = productKindSelect.value === "Kit" || productKindSelect.value === "Long Sleeve Kit";
   let isLongSleeve = productKindSelect.value === "Long Sleeve Shirt" || productKindSelect.value === "Long Sleeve Kit";
-  let isSuit = productKindSelect.value === "Suit";
+  let isBabyBodysuit = productKindSelect.value === "Baby Bodysuit";
   const isPrinted = productPrintSelect.value === "pre_applied_player";
   const usesOtherKitType = productKitTypeSelect.value === "other";
 
-  if (productAudienceSelect.value === "baby" && !isSuit) {
-    productKindSelect.value = "Suit";
+  if (productAudienceSelect.value === "baby" && !isBabyBodysuit) {
+    productKindSelect.value = "Baby Bodysuit";
     isKit = false;
     isLongSleeve = false;
-    isSuit = true;
+    isBabyBodysuit = true;
   }
 
-  if (isSuit) {
+  if (isBabyBodysuit) {
     productAudienceSelect.value = "baby";
   }
 
@@ -293,14 +294,17 @@ function syncProductSelectionFields() {
   adultAudienceOption.textContent = isKit ? "Adult" : "Adult (kits only)";
 
   form.elements.audience.value = productAudienceSelect.value;
-  form.elements.product_type.value = isKit ? "full_kit" : "shirt_only";
+  form.elements.product_type.value = isKit ? "full_kit" : isBabyBodysuit ? "baby_bodysuit" : "shirt_only";
   form.elements.kit_type.value = usesOtherKitType ? productOtherKitType.value.trim() || "unknown" : productKitTypeSelect.value;
-  form.elements.sleeve_length.value = isSuit ? "baby_suit" : isLongSleeve ? "long_sleeve" : "short_sleeve";
+  form.elements.sleeve_length.value = isBabyBodysuit ? "not_applicable" : isLongSleeve ? "long_sleeve" : "short_sleeve";
   form.elements.listing_configuration.value = productPrintSelect.value;
 
   if (isKit) {
     form.elements.socks_status.value = productSocksSelect.value;
     form.elements.included_items.value = productSocksSelect.value === "included" ? "shirt_shorts_and_socks" : "shirt_and_shorts";
+  } else if (isBabyBodysuit) {
+    form.elements.socks_status.value = "not_applicable";
+    form.elements.included_items.value = "baby_bodysuit";
   } else {
     form.elements.socks_status.value = "not_applicable";
     form.elements.included_items.value = "shirt_only";
@@ -349,6 +353,16 @@ function syncBadgeField() {
   }
 }
 
+function canonicalBadgeLeague(value) {
+  const enteredValue = String(value || "").trim();
+  if (!enteredValue) return "";
+  const loweredValue = enteredValue.toLowerCase();
+  const option = badgeLeagueOptions.find(({ value: optionValue, aliases }) => (
+    [optionValue, ...aliases].some((candidate) => candidate.toLowerCase() === loweredValue)
+  ));
+  return option?.value || enteredValue;
+}
+
 function setBadgeLeagueSuggestionsOpen(isOpen) {
   isBadgeLeagueSuggestionsOpen = isOpen;
   badgeLeagueInput.setAttribute("aria-expanded", String(isOpen));
@@ -358,21 +372,23 @@ function setBadgeLeagueSuggestionsOpen(isOpen) {
 function renderBadgeLeagueSuggestions() {
   badgeLeagueSuggestions.replaceChildren();
   const query = String(badgeLeagueInput.dataset.tabSuggestionQuery ?? badgeLeagueInput.value).trim().toLowerCase();
-  const matches = badgeLeagueOptions.filter((league) => league.toLowerCase().includes(query));
+  const matches = badgeLeagueOptions.filter(({ value, aliases }) => (
+    [value, ...aliases].some((candidate) => candidate.toLowerCase().includes(query))
+  ));
   const shouldShow = isBadgeLeagueSuggestionsOpen && matches.length > 0;
   badgeLeagueSuggestions.classList.toggle("hidden", !shouldShow);
 
   if (!shouldShow) return;
 
-  matches.forEach((league) => {
+  matches.forEach(({ value }) => {
     const option = document.createElement("button");
     option.type = "button";
     option.className = "badge-league-suggestion";
     option.setAttribute("role", "option");
-    option.textContent = league;
+    option.textContent = value;
     option.addEventListener("mousedown", (event) => event.preventDefault());
     option.addEventListener("click", () => {
-      badgeLeagueInput.value = league;
+      badgeLeagueInput.value = value;
       badgeLeagueInput.dispatchEvent(new Event("input", { bubbles: true }));
       setBadgeLeagueSuggestionsOpen(false);
     });
@@ -391,7 +407,7 @@ function selectBadgeLeagueSuggestion(direction, startsAtFirst = false) {
   setBadgeLeagueSuggestionsOpen(true);
   const choices = [...badgeLeagueSuggestions.querySelectorAll(".badge-league-suggestion")];
   if (!choices.length) return;
-  const selectedIndex = choices.findIndex((choice) => choice.textContent === badgeLeagueInput.value);
+  const selectedIndex = choices.findIndex((choice) => choice.textContent === canonicalBadgeLeague(badgeLeagueInput.value));
   const nextIndex = startsAtFirst
     ? 0
     : (selectedIndex + direction + choices.length) % choices.length;
@@ -950,7 +966,7 @@ function handleImageColourCanvasClick(event) {
 
 function syncProductControlsFromFacts(facts) {
   productAudienceSelect.value = facts.audience || "kids";
-  productKindSelect.value = facts.product_type === "full_kit" ? facts.sleeve_length === "long_sleeve" ? "Long Sleeve Kit" : "Kit" : facts.sleeve_length === "baby_suit" ? "Suit" : facts.sleeve_length === "long_sleeve" ? "Long Sleeve Shirt" : "Shirt";
+  productKindSelect.value = facts.product_type === "full_kit" ? facts.sleeve_length === "long_sleeve" ? "Long Sleeve Kit" : "Kit" : facts.product_type === "baby_bodysuit" ? "Baby Bodysuit" : facts.sleeve_length === "long_sleeve" ? "Long Sleeve Shirt" : "Shirt";
   const supportedKitType = [...productKitTypeSelect.options].some((option) => option.value === facts.kit_type);
   productKitTypeSelect.value = supportedKitType ? facts.kit_type : "other";
   productOtherKitType.value = supportedKitType ? "" : facts.kit_type || "";
@@ -1223,12 +1239,21 @@ function normaliseProductType(facts) {
   if (["shirt", "shirt only", "shirt-only", "football shirt"].includes(value)) {
     facts.product_type = "shirt_only";
   }
+  if (["baby bodysuit", "baby_bodysuit", "bodysuit", "baby suit"].includes(value)) {
+    facts.product_type = "baby_bodysuit";
+  }
 }
 
 function applyProductTypeRules(facts) {
-  if (facts.product_type !== "shirt_only") return;
-  facts.included_items = "shirt_only";
-  facts.socks_status = "not_applicable";
+  if (facts.product_type === "shirt_only") {
+    facts.included_items = "shirt_only";
+    facts.socks_status = "not_applicable";
+  }
+  if (facts.product_type === "baby_bodysuit") {
+    facts.included_items = "baby_bodysuit";
+    facts.socks_status = "not_applicable";
+    facts.sleeve_length = "not_applicable";
+  }
 }
 
 function esc(value) {
@@ -1247,7 +1272,7 @@ function titleCaseToken(value) {
 }
 
 function shirtLabel(facts) {
-  if (facts.sleeve_length === "baby_suit") return "baby suit";
+  if (facts.product_type === "baby_bodysuit") return "baby football bodysuit";
   if (facts.sleeve_length === "long_sleeve") return "long-sleeve";
   if (facts.sleeve_length === "short_sleeve") return "short-sleeve";
   if (facts.sleeve_length && facts.sleeve_length !== "unknown") {
@@ -1263,7 +1288,7 @@ function sleeveLengthLabel(facts) {
 }
 
 function productItemLabel(facts) {
-  if (facts.sleeve_length === "baby_suit") return "baby suit";
+  if (facts.product_type === "baby_bodysuit") return "baby football bodysuit";
   if (facts.sleeve_length === "long_sleeve") return "long-sleeve shirt";
   return "football shirt";
 }
@@ -1334,7 +1359,7 @@ function mainColoursOpening(facts) {
     ? String(facts.main_colour_socks || "").trim()
     : "";
 
-  if (shirt) colours.push(`${sentenceStart(shirt)} shirt`);
+  if (shirt) colours.push(`${sentenceStart(shirt)} ${facts.product_type === "baby_bodysuit" ? "bodysuit" : "shirt"}`);
   if (shorts) colours.push(`${sentenceStart(shorts)} shorts`);
   if (socks) colours.push(`${sentenceStart(socks)} socks`);
 
@@ -1513,11 +1538,15 @@ function detectBundleBranch(facts) {
 function detectBranch(facts) {
   if (facts.site !== "KFK") return null;
 
+  if (facts.product_type === "baby_bodysuit" && facts.audience === "baby" && facts.included_items === "baby_bodysuit" && facts.socks_status === "not_applicable") {
+    return `${facts.listing_configuration}_baby_bodysuit`;
+  }
+
   if (facts.product_type === "shirt_only" && facts.included_items === "shirt_only" && facts.socks_status === "not_applicable") {
     return `${facts.listing_configuration}_${facts.audience}_shirt_only`;
   }
 
-  if (facts.product_type === "full_kit" && ["kids", "men", "adult", "women", "baby"].includes(facts.audience)) {
+  if (facts.product_type === "full_kit" && ["kids", "men", "adult", "women"].includes(facts.audience)) {
     if (facts.included_items === "shirt_and_shorts" && facts.socks_status === "unavailable") {
       if (facts.listing_configuration === "plain_customisable") {
         return `plain_customisable_${facts.audience}_full_kit_without_socks`;
@@ -1545,7 +1574,7 @@ function productNameConflict(facts) {
   const saysFootballKit = /\bfootball\s+kit\b/.test(productName);
   const saysShirt = /\b(?:football\s+)?shirt\b/.test(productName);
 
-  if (saysFootballKit && facts.product_type !== "full_kit") {
+  if (saysFootballKit && !["full_kit", "baby_bodysuit"].includes(facts.product_type)) {
     return "Product name says Football Kit, but Product selection is a single item. Confirm whether this should be Kit or Shirt.";
   }
 
@@ -1636,6 +1665,25 @@ function validateFacts(facts, branch) {
     if (facts.audience === "adult") {
       blockers.push("Adult is reserved for generic adult kits. Choose Men or Women for a shirt-only product.");
     }
+  }
+
+  if (facts.product_type === "baby_bodysuit") {
+    if (facts.audience !== "baby") {
+      blockers.push("Baby bodysuits must use audience baby.");
+    }
+    if (facts.included_items !== "baby_bodysuit") {
+      blockers.push("Baby bodysuits must use included_items baby_bodysuit.");
+    }
+    if (facts.socks_status !== "not_applicable") {
+      blockers.push("Baby bodysuits must use socks_status not_applicable.");
+    }
+    if (facts.sleeve_length !== "not_applicable") {
+      blockers.push("Baby bodysuits must use sleeve_length not_applicable.");
+    }
+  }
+
+  if (facts.audience === "baby" && facts.product_type !== "baby_bodysuit") {
+    blockers.push("Baby listings must use the dedicated Baby Bodysuit product selection.");
   }
 
   if (facts.audience === "kids" && facts.size_profile !== "kids_16_28") {
@@ -1744,7 +1792,7 @@ function includedItemsHtml(facts) {
     ? `${esc(itemLabel)} with ${esc(displayName(facts.pre_applied_name))} name and number ${esc(facts.pre_applied_number)} already applied to the back`
     : esc(itemLabel);
 
-  if (facts.product_type === "shirt_only") {
+  if (["shirt_only", "baby_bodysuit"].includes(facts.product_type)) {
     return `<li>${shirtText}</li>`;
   }
 
@@ -1770,7 +1818,7 @@ function mainColoursLine(facts) {
     ? String(facts.main_colour_socks || "").trim()
     : "";
 
-  if (shirtColour) colours.push(`${sentenceStart(shirtColour)} shirt`);
+  if (shirtColour) colours.push(`${sentenceStart(shirtColour)} ${facts.product_type === "baby_bodysuit" ? "bodysuit" : "shirt"}`);
   if (shortsColour) colours.push(`${sentenceStart(shortsColour)} shorts`);
   if (socksColour) colours.push(`${sentenceStart(socksColour)} socks`);
   if (!colours.length) return "";
@@ -2021,6 +2069,17 @@ function auditDescription(html, facts, blockers, reviewFlags, resolvedBranch = n
     }
     if (facts.product_type === "shirt_only" && detailsText.includes("main colours") && detailsText.includes("shorts")) {
       blockers.push("Shirt-only products must not show a shorts colour in the details section.");
+    }
+    if (facts.product_type === "baby_bodysuit") {
+      if (!includedText.includes("baby football bodysuit")) {
+        blockers.push("Baby bodysuit products must identify the one-piece baby football bodysuit under included items.");
+      }
+      if (includedText.includes("shorts") || includedText.includes("socks")) {
+        blockers.push("Baby bodysuit products must not list shorts or socks as included items.");
+      }
+      if (text.includes("shorts and socks are not included")) {
+        blockers.push("Baby bodysuit products must not use shirt-only wording.");
+      }
     }
   }
 

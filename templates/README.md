@@ -16,3 +16,7 @@ unless the team has entered a confirmed main shirt colour. Player-print plans
 must use `detailPlacement: "details"`; plain customisable plans use
 `detailPlacement: "options"`. Every plan must be manually approved,
 semantically equivalent and selected deterministically.
+
+Baby Bodysuit branches are one-piece product branches. They must identify one
+`baby football bodysuit` under the included-items section and must not reuse
+shirt-only wording or infer matching shorts or socks from product titles.
